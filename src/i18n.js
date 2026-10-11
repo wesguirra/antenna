@@ -13,6 +13,7 @@ export function setLanguage(language) {
   localStorage.setItem(key, language === "en" ? "en" : "pt-BR");
   document.documentElement.lang = current();
   window.dispatchEvent(new Event("antenna-language"));
+  window.electron?.setLanguage?.(current());
 }
 export function t(text) {
   if (typeof text !== "string") return text;
@@ -21,12 +22,30 @@ export function t(text) {
   if (Object.hasOwn(pt, text)) return pt[text];
   const patterns = [
     [/^Playback failed: (.+)$/, "Falha na reprodução: $1"],
-    [/^Playback engine could not start: (.+) — check antivirus\/SmartScreen$/, "Não foi possível iniciar o player: $1"],
-    [/^Playback engine rejected a command \((.+)\)$/, "O player não conseguiu executar o comando ($1)"],
-    [/^Stream failed to load \(HTTP (\d+)\)$/, "Falha ao carregar o vídeo (HTTP $1)"],
-    [/^Stream failed to play \(decode error: (.+)\)$/, "Falha ao reproduzir o vídeo (erro de decodificação: $1)"],
-    [/^Stream unavailable or failed to load \((.+)\)$/, "Vídeo indisponível ou falha ao carregar ($1)"],
-    [/^Failed to load stream \((.+)\)$/, "Não foi possível carregar o vídeo ($1)"],
+    [
+      /^Playback engine could not start: (.+) — check antivirus\/SmartScreen$/,
+      "Não foi possível iniciar o player: $1",
+    ],
+    [
+      /^Playback engine rejected a command \((.+)\)$/,
+      "O player não conseguiu executar o comando ($1)",
+    ],
+    [
+      /^Stream failed to load \(HTTP (\d+)\)$/,
+      "Falha ao carregar o vídeo (HTTP $1)",
+    ],
+    [
+      /^Stream failed to play \(decode error: (.+)\)$/,
+      "Falha ao reproduzir o vídeo (erro de decodificação: $1)",
+    ],
+    [
+      /^Stream unavailable or failed to load \((.+)\)$/,
+      "Vídeo indisponível ou falha ao carregar ($1)",
+    ],
+    [
+      /^Failed to load stream \((.+)\)$/,
+      "Não foi possível carregar o vídeo ($1)",
+    ],
 
     [
       /^OpenSubtitles request failed \((\d+)\)\.$/,
@@ -49,6 +68,7 @@ export function t(text) {
   return text;
 }
 document.documentElement.lang = current();
+window.electron?.setLanguage?.(current());
 
 export function formatRating(value) {
   const number = Number(value);

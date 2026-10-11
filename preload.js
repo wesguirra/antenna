@@ -5,6 +5,7 @@ const mpvAvailable = ipcRenderer.sendSync("mpv-available") === true;
 
 contextBridge.exposeInMainWorld("electron", {
   mpvAvailable,
+  setLanguage: (language) => ipcRenderer.invoke("ui-language", language),
   mpv: {
     load: (url, startSec) => ipcRenderer.invoke("mpv-load", url, startSec || 0),
     stop: () => ipcRenderer.invoke("mpv-stop"),

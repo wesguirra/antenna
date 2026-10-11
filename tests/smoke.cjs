@@ -1,6 +1,6 @@
 // Run with: ANTENNA_SMOKE_VIDEO=/absolute/file.mp4 npx electron tests/smoke.cjs
 // Uses a disposable profile and synthetic catalog; never touches personal data.
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, Menu } = require("electron");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -54,10 +54,28 @@ app.on("browser-window-created", (_e, w) => {
     }),
   );
 });
-if (process.env.ANTENNA_SMOKE_RESOURCES) {
-  process.resourcesPath = path.resolve(process.env.ANTENNA_SMOKE_RESOURCES);
-  require(path.join(process.resourcesPath,"app.asar","index.js"));
-} else require("../index.js");
+try {
+  if (process.env.ANTENNA_SMOKE_RESOURCES) {
+    const resources = path.resolve(process.env.ANTENNA_SMOKE_RESOURCES);
+    const entry = path.join(resources, "app.asar", "index.js");
+    // Electron's process.resourcesPath is read-only. Adapt only that location
+    // when running the packaged entry through the development test runner.
+    const Module = require("node:module");
+    const packaged = new Module(entry, module);
+    packaged.filename = entry;
+    packaged.paths = Module._nodeModulePaths(path.dirname(entry));
+    packaged._compile(
+      fs
+        .readFileSync(entry, "utf8")
+        .replaceAll("process.resourcesPath", JSON.stringify(resources)),
+      entry,
+    );
+  } else require("../index.js");
+} catch (error) {
+  console.error(error);
+  app.exit(1);
+}
+
 async function run() {
   const js = async (code) => {
     try {
@@ -72,6 +90,9 @@ async function run() {
   };
   await delay(500);
   assert.equal(await js("document.documentElement.lang"), "pt-BR");
+  assert.ok(
+    Menu.getApplicationMenu().items.some((item) => item.label === "Arquivo"),
+  );
   assert.match(
     await js("document.body.innerText"),
     /Sua tela\. Suas histórias\./,
@@ -87,6 +108,9 @@ async function run() {
   );
   await delay(200);
   assert.equal(await js("document.documentElement.lang"), "en");
+  assert.ok(
+    Menu.getApplicationMenu().items.some((item) => item.label === "File"),
+  );
   assert.match(await js("document.body.innerText"), /App language/);
   await js(
     `const s=document.querySelector('.language-select');s.value='pt-BR';s.dispatchEvent(new Event('change',{bubbles:true}))`,

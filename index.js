@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, session, safeStorage, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, session, safeStorage, screen, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -8,6 +8,8 @@ const { spawn } = require("child_process");
 const { OpenSubtitles } = require("./electron/opensubtitles.cjs");
 const { PictureInPicture } = require("./electron/pip.cjs");
 const subtitleFiles = new Set();
+const { installMenu } = require("./electron/menu.cjs");
+const setMenuLanguage = language => installMenu({Menu,app,language,onFullscreen:toggleWindowFullscreen});
 let subtitles;
 let pip;
 
@@ -643,6 +645,7 @@ function createWindow() {
   });
 
   pip = new PictureInPicture(mainWindow, screen);
+  setMenuLanguage("pt-BR");
   mainWindow.once("ready-to-show", () => mainWindow.show());
 
   const isDev = process.env.ELECTRON_DEV === "1";
@@ -742,14 +745,16 @@ ipcMain.handle("maximize-window", () => {
 });
 ipcMain.handle("close-window", () => mainWindow?.close());
 ipcMain.handle("is-maximized", () => mainWindow?.isMaximized());
-ipcMain.handle("toggle-fullscreen", async () => {
+async function toggleWindowFullscreen() {
   if (!mainWindow) return false;
   const fromPip = !!pip?.active;
   if (fromPip) await pip.set(false);
   const next = fromPip || !mainWindow.isFullScreen();
   mainWindow.setFullScreen(next);
   return next;
-});
+}
+ipcMain.handle("toggle-fullscreen", toggleWindowFullscreen);
+ipcMain.handle("ui-language", (_e, language) => setMenuLanguage(language));
 ipcMain.handle("is-fullscreen", () => mainWindow?.isFullScreen());
 
 ipcMain.handle("open-m3u-file", async (_e, language) => {
