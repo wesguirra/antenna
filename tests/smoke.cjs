@@ -152,8 +152,23 @@ async function run() {
     groups: [],
     movies,
     movieGroups: ["Histórias para descobrir"],
-    series: [],
-    seriesGroups: [],
+    series: Array.from({ length: 24 }, (_, i) => ({
+      id: i,
+      seriesId: i + 1,
+      name: `Série ${i + 1}`,
+      poster: svg("#38445c"),
+      group: [
+        "Séries | AMC Plus",
+        "Séries | Apple TV Plus",
+        "Séries | Brasil Paralelo",
+      ][Math.floor(i / 8)],
+      rating: 8,
+    })),
+    seriesGroups: [
+      "Séries | AMC Plus",
+      "Séries | Apple TV Plus",
+      "Séries | Brasil Paralelo",
+    ],
   };
   await js(
     `localStorage.setItem('livebox_xtreamCreds',${JSON.stringify(JSON.stringify({ baseUrl: cache.baseUrl, username: cache.username, password: "fixture" }))});localStorage.setItem('livebox_xtreamCache',${JSON.stringify(JSON.stringify(cache))});`,
@@ -173,6 +188,55 @@ async function run() {
     path.join(output, "antenna-home.png"),
     (await win.webContents.capturePage()).toPNG(),
   );
+  // Regression: the catalog scrolls on the document, not the .main element.
+  for (const page of ["movies", "series", "home"]) {
+    await js(
+      `document.querySelector('.topnav-link:nth-child(${page === "movies" ? 3 : page === "series" ? 4 : 1})').click();window.scrollTo(0,0)`,
+    );
+    await delay(150);
+    await js(`window.scrollTo(0,700)`);
+    await delay(300);
+    assert.ok(
+      await js("window.scrollY > 8"),
+      "the actual document must scroll",
+    );
+    assert.ok(
+      await js(
+        'document.querySelector(".topnav").classList.contains("is-scrolled")',
+      ),
+      `${page}: header must track document scrolling`,
+    );
+    for (
+      let attempt = 0;
+      attempt < 20 &&
+      (await js(
+        'getComputedStyle(document.querySelector(".topnav")).backgroundColor',
+      )) !== "rgb(16, 16, 18)";
+      attempt++
+    )
+      await delay(100);
+    assert.equal(
+      await js(
+        'getComputedStyle(document.querySelector(".topnav")).backgroundColor',
+      ),
+      "rgb(16, 16, 18)",
+      `${page}: header must hide titles behind it`,
+    );
+    if (page === "series")
+      fs.writeFileSync(
+        path.join(output, "antenna-series-scroll.png"),
+        (await win.webContents.capturePage()).toPNG(),
+      );
+    await js("window.scrollTo(0,0)");
+    await delay(300);
+    assert.equal(
+      await js(
+        'document.querySelector(".topnav").classList.contains("is-scrolled")',
+      ),
+      false,
+      `${page}: hero header must reset at top`,
+    );
+  }
   await js(
     `window.__times=[];window.electron.mpv.onEvent(e=>{if(e.type==='time')window.__times.push(e.value);if(e.type==='tracks')window.__tracks=e});document.querySelector('.billboard .btn-primary').click()`,
   );

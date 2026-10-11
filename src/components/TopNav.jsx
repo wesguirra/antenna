@@ -27,10 +27,21 @@ export default function TopNav({
   useEffect(() => {
     const el = scrollContainerRef?.current;
     if (!el) return;
-    const onScroll = () => setScrolled(el.scrollTop > 8);
+    const onScroll = () =>
+      setScrolled(
+        Math.max(
+          window.scrollY,
+          document.scrollingElement?.scrollTop || 0,
+          el.scrollTop,
+        ) > 8,
+      );
     onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      el.removeEventListener("scroll", onScroll);
+    };
   }, [scrollContainerRef, page]);
 
   const cls = [

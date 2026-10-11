@@ -178,14 +178,14 @@ html.player-locked, html.player-locked body { overflow: hidden; }
   -webkit-app-region: drag;          /* draggable; interactive children opt out */
 }
 .topnav.is-scrolled {
-  background: var(--glass-heavy);
+  background: #101012;
   backdrop-filter: var(--glass-blur);
   border-bottom-color: var(--glass-border);
 }
 /* When a page has no billboard (Live, Settings, Favorites, welcome), the nav is
    solid from the start so links stay legible over flat surfaces. */
 .topnav.is-solid {
-  background: var(--glass-heavy);
+  background: #101012;
   backdrop-filter: var(--glass-blur);
   border-bottom-color: var(--glass-border);
 }
