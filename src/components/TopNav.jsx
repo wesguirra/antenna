@@ -17,7 +17,6 @@ export default function TopNav({
   hasTitlebar,
   hasContent,
   hasBillboard,
-  scrollContainerRef,
   onNavigate,
   onOpenSearch,
 }) {
@@ -25,24 +24,14 @@ export default function TopNav({
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const el = scrollContainerRef?.current;
-    if (!el) return;
     const onScroll = () =>
       setScrolled(
-        Math.max(
-          window.scrollY,
-          document.scrollingElement?.scrollTop || 0,
-          el.scrollTop,
-        ) > 8,
+        (window.scrollY || document.scrollingElement?.scrollTop || 0) > 8,
       );
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      el.removeEventListener("scroll", onScroll);
-    };
-  }, [scrollContainerRef, page]);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [page]);
 
   const cls = [
     "topnav",

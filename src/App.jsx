@@ -69,7 +69,6 @@ export default function App() {
   }, [spotlightOpen, showURLModal]);
 
   const loadXtreamRef = useRef(null);
-  const mainRef = useRef(null);
 
   useEffect(() => {
     window.electron?.getPlatform?.().then(setPlatform);
@@ -454,7 +453,6 @@ export default function App() {
         hasTitlebar={hasCustomTitlebar}
         hasContent={hasContent}
         hasBillboard={hasBillboard}
-        scrollContainerRef={mainRef}
         onNavigate={(p) => {
           setPlaying(null);
           setPage(p);
@@ -495,7 +493,6 @@ export default function App() {
         />
       )}
       <div
-        ref={mainRef}
         className={`main${hasCustomTitlebar ? " has-titlebar" : ""}${page === "live" && hasContent && !(playing && playerMode === "fullscreen") ? " has-live-side" : ""}`}
       >
         {loading && (

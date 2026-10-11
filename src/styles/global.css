@@ -172,21 +172,19 @@ html.player-locked, html.player-locked body { overflow: hidden; }
   padding: 0 var(--topnav-pad-x);
   background: transparent;            /* transparent over hero */
   border-bottom: 1px solid transparent;
-  transition: background var(--t-base) var(--ease),
-              border-color var(--t-base) var(--ease),
-              backdrop-filter var(--t-base) var(--ease);
+  transition: border-color var(--t-base) var(--ease);
   -webkit-app-region: drag;          /* draggable; interactive children opt out */
 }
 .topnav.is-scrolled {
   background: #101012;
-  backdrop-filter: var(--glass-blur);
+  backdrop-filter: none;
   border-bottom-color: var(--glass-border);
 }
 /* When a page has no billboard (Live, Settings, Favorites, welcome), the nav is
    solid from the start so links stay legible over flat surfaces. */
 .topnav.is-solid {
   background: #101012;
-  backdrop-filter: var(--glass-blur);
+  backdrop-filter: none;
   border-bottom-color: var(--glass-border);
 }
 /* macOS: clear the three traffic lights (titleBarStyle hiddenInset, no custom titlebar) */

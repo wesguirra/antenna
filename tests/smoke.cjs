@@ -222,11 +222,24 @@ async function run() {
       "rgb(16, 16, 18)",
       `${page}: header must hide titles behind it`,
     );
-    if (page === "series")
+    if (page === "series") {
+      const screenshot = await win.webContents.capturePage();
+      const bitmap = screenshot.resize({ width: 1400, height: 900 }).toBitmap();
+      const pixel = bitmap.subarray(
+        (15 * 1400 + 1000) * 4,
+        (15 * 1400 + 1000) * 4 + 4,
+      );
+      assert.ok(
+        Math.abs(pixel[0] - 18) <= 2 &&
+          Math.abs(pixel[1] - 16) <= 2 &&
+          Math.abs(pixel[2] - 16) <= 2,
+        "rendered header must cover the posters, not merely report an opaque CSS color",
+      );
       fs.writeFileSync(
         path.join(output, "antenna-series-scroll.png"),
-        (await win.webContents.capturePage()).toPNG(),
+        screenshot.toPNG(),
       );
+    }
     await js("window.scrollTo(0,0)");
     await delay(300);
     assert.equal(
