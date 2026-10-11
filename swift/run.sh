@@ -20,4 +20,4 @@ fi
 mkdir -p "${frameworks_dir}"
 ln -sfn "../debug/VLCKit.framework" "${frameworks_dir}/VLCKit.framework"
 
-exec "${debug_dir}/LiveBox"
+exec "${debug_dir}/Antenna"

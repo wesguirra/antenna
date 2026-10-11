@@ -1,4 +1,11 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { t, useLanguage, formatRating } from "../i18n";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
 import { SearchIcon, StarIcon, MonitorIcon } from "../components/Icons";
 import Billboard from "../components/Billboard";
 import Shelf from "../components/Shelf";
@@ -10,15 +17,20 @@ const SHELF_ITEM_CAP = 20;
 
 // IPTV titles often carry a "EN - " / "AR | " language/country prefix — strip it
 // for display so the billboard title and episode rows read cleanly.
-const stripPrefix = (s) => (s || "").replace(/^[A-Za-z]{2,4}\s*[-|:]\s*/, "").trim();
+const stripPrefix = (s) =>
+  (s || "").replace(/^[A-Za-z]{2,4}\s*[-|:]\s*/, "").trim();
 
 // Keyboard activation helper (spec §2.9)
 const onActivate = (fn) => (e) => {
   if (e.target !== e.currentTarget) return;
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    fn();
+  }
 };
 
 function SeriesCard({ show, onClick, isFav, onToggleFav, lastEpisode }) {
+  useLanguage();
   return (
     <div
       className="poster-card"
@@ -33,19 +45,31 @@ function SeriesCard({ show, onClick, isFav, onToggleFav, lastEpisode }) {
         ) : (
           <div className="poster-fallback">{show.name.charAt(0)}</div>
         )}
-        {show.rating && <span className="poster-rating">{show.rating}</span>}
+        {show.rating && (
+          <span className="poster-rating">{formatRating(show.rating)}</span>
+        )}
         <button
           className={`poster-fav${isFav ? " is-fav" : ""}`}
-          onClick={(e) => { e.stopPropagation(); onToggleFav(show); }}
-          title={isFav ? "Remove from favorites" : "Add to favorites"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFav(show);
+          }}
+          title={isFav ? t("Remove from favorites") : t("Add to favorites")}
         >
           <StarIcon />
         </button>
         {lastEpisode && (
           <div className="poster-continue">
-            <div className="poster-continue-text">S{lastEpisode.season}E{lastEpisode.ep}</div>
+            <div className="poster-continue-text">
+              S{lastEpisode.season}E{lastEpisode.ep}
+            </div>
             <div className="poster-continue-bar">
-              <div className="poster-continue-fill" style={{ width: `${Math.min((lastEpisode.position / lastEpisode.duration) * 100, 100)}%` }} />
+              <div
+                className="poster-continue-fill"
+                style={{
+                  width: `${Math.min((lastEpisode.position / lastEpisode.duration) * 100, 100)}%`,
+                }}
+              />
             </div>
           </div>
         )}
@@ -57,7 +81,16 @@ function SeriesCard({ show, onClick, isFav, onToggleFav, lastEpisode }) {
 
 const MemoSeriesCard = React.memo(SeriesCard);
 
-function SeriesDetail({ show, xtreamCreds, onPlay, onBack, isFav, onToggleFav, watchProgress }) {
+function SeriesDetail({
+  show,
+  xtreamCreds,
+  onPlay,
+  onBack,
+  isFav,
+  onToggleFav,
+  watchProgress,
+}) {
+  useLanguage();
   const [seasons, setSeasons] = useState(null);
   const [activeSeason, setActiveSeason] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -71,8 +104,12 @@ function SeriesDetail({ show, xtreamCreds, onPlay, onBack, isFav, onToggleFav, w
       show.episodes.forEach((e, idx) => {
         const sk = String(e.season || 1);
         (eps[sk] = eps[sk] || []).push({
-          id: idx, title: e.name, season: e.season || 1, episode_num: e.episodeNum || idx + 1,
-          direct_source: e.url, info: { movie_image: e.poster || show.poster || "" },
+          id: idx,
+          title: e.name,
+          season: e.season || 1,
+          episode_num: e.episodeNum || idx + 1,
+          direct_source: e.url,
+          info: { movie_image: e.poster || show.poster || "" },
         });
       });
       setSeasons(eps);
@@ -81,34 +118,51 @@ function SeriesDetail({ show, xtreamCreds, onPlay, onBack, isFav, onToggleFav, w
       setLoading(false);
       return;
     }
-    if (!xtreamCreds) { setLoading(false); return; }
+    if (!xtreamCreds) {
+      setLoading(false);
+      return;
+    }
     const { baseUrl, username, password } = xtreamCreds;
     const url = `${baseUrl}/player_api.php?username=${username}&password=${password}&action=get_series_info&series_id=${show.seriesId}`;
-    window.electron.fetchURL(url).then((json) => {
-      const data = JSON.parse(json);
-      const eps = data.episodes || {};
-      setSeasons(eps);
-      const seasonKeys = Object.keys(eps).sort((a, b) => Number(a) - Number(b));
-      if (seasonKeys.length) setActiveSeason(seasonKeys[0]);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    window.electron
+      .fetchURL(url)
+      .then((json) => {
+        const data = JSON.parse(json);
+        const eps = data.episodes || {};
+        setSeasons(eps);
+        const seasonKeys = Object.keys(eps).sort(
+          (a, b) => Number(a) - Number(b),
+        );
+        if (seasonKeys.length) setActiveSeason(seasonKeys[0]);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [show, xtreamCreds]);
 
-  const seasonKeys = seasons ? Object.keys(seasons).sort((a, b) => Number(a) - Number(b)) : [];
+  const seasonKeys = seasons
+    ? Object.keys(seasons).sort((a, b) => Number(a) - Number(b))
+    : [];
   const episodes = seasons && activeSeason ? seasons[activeSeason] || [] : [];
 
   // Prefer direct_source when the provider populates it — that's the URL
   // it knows works, often pointing at a different storage backend than
   // the constructed /series/USER/PASS/ID.ext path. Fall back to building
   // the standard URL when direct_source is missing or empty.
-  const buildEpisodeUrl = useCallback((ep) => {
-    if (ep.direct_source && typeof ep.direct_source === "string" && ep.direct_source.startsWith("http")) {
-      return ep.direct_source;
-    }
-    if (!xtreamCreds) return "";   // M3U series always carry a direct_source
-    const { baseUrl, username, password } = xtreamCreds;
-    return `${baseUrl}/series/${username}/${password}/${ep.id}.${ep.container_extension || "mkv"}`;
-  }, [xtreamCreds]);
+  const buildEpisodeUrl = useCallback(
+    (ep) => {
+      if (
+        ep.direct_source &&
+        typeof ep.direct_source === "string" &&
+        ep.direct_source.startsWith("http")
+      ) {
+        return ep.direct_source;
+      }
+      if (!xtreamCreds) return ""; // M3U series always carry a direct_source
+      const { baseUrl, username, password } = xtreamCreds;
+      return `${baseUrl}/series/${username}/${password}/${ep.id}.${ep.container_extension || "mkv"}`;
+    },
+    [xtreamCreds],
+  );
 
   // Build flat episode list for sidebar/auto-next
   const allEpisodes = useMemo(() => {
@@ -116,7 +170,7 @@ function SeriesDetail({ show, xtreamCreds, onPlay, onBack, isFav, onToggleFav, w
     const list = [];
     const keys = Object.keys(seasons).sort((a, b) => Number(a) - Number(b));
     for (const sk of keys) {
-      for (const ep of (seasons[sk] || [])) {
+      for (const ep of seasons[sk] || []) {
         list.push({
           id: ep.id,
           name: ep.title || `S${ep.season}E${ep.episode_num}`,
@@ -157,29 +211,47 @@ function SeriesDetail({ show, xtreamCreds, onPlay, onBack, isFav, onToggleFav, w
         </div>
       )}
       <div className="series-detail-top">
-        <button className="btn btn-secondary" onClick={onBack}>&larr; Back</button>
+        <button className="btn btn-secondary" onClick={onBack}>
+          {t("\u2190 Back")}
+        </button>
         <button
           className={`btn ${isFav ? "btn-primary" : "btn-secondary"}`}
           onClick={() => onToggleFav(show)}
         >
-          <StarIcon /> {isFav ? "Favorited" : "Favorite"}
+          <StarIcon /> {isFav ? t("Favorited") : t("Favorite")}
         </button>
       </div>
       <div className="series-detail-header">
-        {show.poster && <img src={show.poster} alt="" className="series-detail-poster" />}
+        {show.poster && (
+          <img src={show.poster} alt="" className="series-detail-poster" />
+        )}
         <div className="series-detail-info">
           <h1 className="series-detail-title">{stripPrefix(show.name)}</h1>
-          {show.genre && <span className="series-detail-meta">{show.genre}</span>}
-          {show.releaseDate && <span className="series-detail-meta">{show.releaseDate}</span>}
-          {show.rating && <span className="series-detail-meta">Rating: {show.rating}</span>}
+          {show.genre && (
+            <span className="series-detail-meta">{show.genre}</span>
+          )}
+          {show.releaseDate && (
+            <span className="series-detail-meta">{show.releaseDate}</span>
+          )}
+          {show.rating && (
+            <span className="series-detail-meta">
+              {t("Rating:")} {show.rating}
+            </span>
+          )}
           {show.plot && <p className="series-detail-plot">{show.plot}</p>}
-          {show.cast && <p className="series-detail-cast">Cast: {show.cast}</p>}
+          {show.cast && (
+            <p className="series-detail-cast">
+              {t("Cast:")} {show.cast}
+            </p>
+          )}
         </div>
       </div>
 
       {loading ? (
         <>
-          <div className="series-loading"><div className="player-spinner" /></div>
+          <div className="series-loading">
+            <div className="player-spinner" />
+          </div>
           <div className="episode-list">
             {[0, 1, 2].map((i) => (
               <div className="skeleton-ep-row" key={i}>
@@ -197,8 +269,13 @@ function SeriesDetail({ show, xtreamCreds, onPlay, onBack, isFav, onToggleFav, w
           {seasonKeys.length > 1 && (
             <div className="season-tabs">
               {seasonKeys.map((s) => (
-                <button key={s} className={`season-tab${activeSeason === s ? " active" : ""}`}
-                  onClick={() => setActiveSeason(s)}>Season {s}</button>
+                <button
+                  key={s}
+                  className={`season-tab${activeSeason === s ? " active" : ""}`}
+                  onClick={() => setActiveSeason(s)}
+                >
+                  {t("Season")} {s}
+                </button>
               ))}
             </div>
           )}
@@ -210,13 +287,21 @@ function SeriesDetail({ show, xtreamCreds, onPlay, onBack, isFav, onToggleFav, w
               return episodes.map((ep) => {
                 const epUrl = `${baseUrl}/series/${username}/${password}/${ep.id}.${ep.container_extension || "mkv"}`;
                 const prog = watchProgress?.[epUrl];
-                const isLastWatched = lastEp && lastEp.ep === ep.episode_num && lastEp.season === ep.season;
+                const isLastWatched =
+                  lastEp &&
+                  lastEp.ep === ep.episode_num &&
+                  lastEp.season === ep.season;
                 const isWatched = prog && prog.position > prog.duration * 0.9;
                 // Providers usually repeat the series name as the episode "title"
                 // ("EN - My Wife and Kids - S01E01"). Strip it down to a real title,
                 // or fall back to a clean "Episode N".
-                const epClean = stripPrefix(ep.title).replace(/\s*[-–|]\s*S\d{1,2}\s*E\d{1,3}.*$/i, "").trim();
-                const epTitle = (!epClean || epClean.toLowerCase() === seriesClean) ? `Episode ${ep.episode_num}` : epClean;
+                const epClean = stripPrefix(ep.title)
+                  .replace(/\s*[-–|]\s*S\d{1,2}\s*E\d{1,3}.*$/i, "")
+                  .trim();
+                const epTitle =
+                  !epClean || epClean.toLowerCase() === seriesClean
+                    ? t(`Episode ${ep.episode_num}`)
+                    : epClean;
                 return (
                   <div
                     key={ep.id}
@@ -227,21 +312,43 @@ function SeriesDetail({ show, xtreamCreds, onPlay, onBack, isFav, onToggleFav, w
                     onKeyDown={onActivate(() => handlePlayEpisode(ep))}
                   >
                     {ep.info?.movie_image && (
-                      <img src={ep.info.movie_image} alt="" className="episode-thumb" loading="lazy" />
+                      <img
+                        src={ep.info.movie_image}
+                        alt=""
+                        className="episode-thumb"
+                        loading="lazy"
+                      />
                     )}
-                    {!ep.info?.movie_image && <span className="episode-num">E{ep.episode_num}</span>}
+                    {!ep.info?.movie_image && (
+                      <span className="episode-num">E{ep.episode_num}</span>
+                    )}
                     <div className="episode-info">
                       <span className="episode-label">E{ep.episode_num}</span>
                       <span className="episode-title">{epTitle}</span>
-                      {ep.info?.duration && <span className="episode-duration">{ep.info.duration}</span>}
-                      {isLastWatched && <span className="episode-last-label">Continue watching</span>}
+                      {ep.info?.duration && (
+                        <span className="episode-duration">
+                          {ep.info.duration}
+                        </span>
+                      )}
+                      {isLastWatched && (
+                        <span className="episode-last-label">
+                          {t("Continue watching")}
+                        </span>
+                      )}
                       {prog && prog.position > 10 && !isWatched && (
                         <div className="episode-progress-bar">
-                          <div className="episode-progress-fill" style={{ width: `${Math.min((prog.position / prog.duration) * 100, 100)}%` }} />
+                          <div
+                            className="episode-progress-fill"
+                            style={{
+                              width: `${Math.min((prog.position / prog.duration) * 100, 100)}%`,
+                            }}
+                          />
                         </div>
                       )}
                     </div>
-                    {isWatched && <span className="ep-sidebar-check">&#10003;</span>}
+                    {isWatched && (
+                      <span className="ep-sidebar-check">&#10003;</span>
+                    )}
                   </div>
                 );
               });
@@ -257,7 +364,11 @@ function getLastEpisode(seriesId, watchProgress) {
   if (!watchProgress) return null;
   let latest = null;
   for (const [, val] of Object.entries(watchProgress)) {
-    if (val.seriesId === seriesId && val.position > 10 && val.position < val.duration * 0.95) {
+    if (
+      val.seriesId === seriesId &&
+      val.position > 10 &&
+      val.position < val.duration * 0.95
+    ) {
       if (!latest || (val.updatedAt || 0) > (latest.updatedAt || 0)) {
         latest = val;
       }
@@ -266,7 +377,18 @@ function getLastEpisode(seriesId, watchProgress) {
   return latest;
 }
 
-function SeriesPage({ series, groups, xtreamCreds, onPlay, favorites, onToggleFav, watchProgress, pendingSeries, onClearPending }) {
+function SeriesPage({
+  series,
+  groups,
+  xtreamCreds,
+  onPlay,
+  favorites,
+  onToggleFav,
+  watchProgress,
+  pendingSeries,
+  onClearPending,
+}) {
+  useLanguage();
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [activeGroup, setActiveGroup] = useState(null);
@@ -314,7 +436,10 @@ function SeriesPage({ series, groups, xtreamCreds, onPlay, favorites, onToggleFa
     return list;
   }, [series, activeGroup, search]);
 
-  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const visible = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount],
+  );
 
   const visibleGroups = useMemo(() => {
     if (!groupFilter.trim()) return groups;
@@ -322,12 +447,15 @@ function SeriesPage({ series, groups, xtreamCreds, onPlay, favorites, onToggleFa
     return groups.filter((g) => g.toLowerCase().includes(q));
   }, [groups, groupFilter]);
 
-  const handleScroll = useCallback((e) => {
-    const el = e.target;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
-      setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filtered.length));
-    }
-  }, [filtered.length]);
+  const handleScroll = useCallback(
+    (e) => {
+      const el = e.target;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
+        setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filtered.length));
+      }
+    },
+    [filtered.length],
+  );
 
   // Browse-mode shelves: one shelf per group (capped), each with up to N shows.
   const browseShelves = useMemo(() => {
@@ -341,7 +469,9 @@ function SeriesPage({ series, groups, xtreamCreds, onPlay, favorites, onToggleFa
   if (selectedShow) {
     return (
       <SeriesDetail
-        show={selectedShow} xtreamCreds={xtreamCreds} onPlay={onPlay}
+        show={selectedShow}
+        xtreamCreds={xtreamCreds}
+        onPlay={onPlay}
         onBack={() => setSelectedShow(null)}
         isFav={!!favorites[selectedShow.seriesId]}
         onToggleFav={onToggleFav}
@@ -354,8 +484,8 @@ function SeriesPage({ series, groups, xtreamCreds, onPlay, favorites, onToggleFa
     return (
       <div className="empty-state">
         <MonitorIcon />
-        <h2>No series available</h2>
-        <p>Add a playlist with series content to browse shows</p>
+        <h2>{t("No series available")}</h2>
+        <p>{t("Add a playlist with series content to browse shows")}</p>
       </div>
     );
   }
@@ -369,12 +499,16 @@ function SeriesPage({ series, groups, xtreamCreds, onPlay, favorites, onToggleFa
           onPlay={openShow}
           onMoreInfo={openShow}
         />
+
         {browseShelves.map(({ group, items }) => (
           <Shelf
             key={group}
-            title={group}
+            title={t(group)}
             items={items}
-            onSeeAll={() => { setActiveGroup(group); setBrowseMode(false); }}
+            onSeeAll={() => {
+              setActiveGroup(group);
+              setBrowseMode(false);
+            }}
             renderItem={(s) => (
               <PreviewCard
                 item={s}
@@ -395,26 +529,29 @@ function SeriesPage({ series, groups, xtreamCreds, onPlay, favorites, onToggleFa
     <div className="browse-layout fade-in">
       <div className="groups-panel">
         <div className="groups-panel-header">
-          <span className="groups-panel-title">Series</span>
+          <span className="groups-panel-title">{t("Series")}</span>
           <span className="groups-panel-count">{groups.length}</span>
         </div>
         {groups.length > 12 && (
           <input
             type="text"
             className="group-filter"
-            placeholder="Filter groups…"
+            placeholder={t("Filter groups…")}
             value={groupFilter}
             onChange={(e) => setGroupFilter(e.target.value)}
           />
         )}
         <div className="groups-panel-list">
           {visibleGroups.map((g) => (
-            <div key={g} className={`group-item${activeGroup === g ? " active" : ""}`}
+            <div
+              key={g}
+              className={`group-item${activeGroup === g ? " active" : ""}`}
               role="button"
               tabIndex={0}
               onClick={() => setActiveGroup(g)}
-              onKeyDown={onActivate(() => setActiveGroup(g))}>
-              <span className="group-item-name">{g}</span>
+              onKeyDown={onActivate(() => setActiveGroup(g))}
+            >
+              <span className="group-item-name">{t(g)}</span>
               <span className="group-item-count">{groupCounts[g] || 0}</span>
             </div>
           ))}
@@ -423,26 +560,49 @@ function SeriesPage({ series, groups, xtreamCreds, onPlay, favorites, onToggleFa
 
       <div className="channels-panel">
         <div className="channels-panel-header">
-          <button className="btn btn-secondary btn-sm" onClick={() => setBrowseMode(true)}>&larr; All series</button>
-          <h1 className="channels-panel-title">{activeGroup || "Series"}</h1>
-          <span className="channel-count">{filtered.length} shows</span>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setBrowseMode(true)}
+          >
+            {t("\u2190 All series")}
+          </button>
+          <h1 className="channels-panel-title">{activeGroup || t("Series")}</h1>
+          <span className="channel-count">
+            {filtered.length}
+            {t("shows")}
+          </span>
         </div>
 
         <div className="search-bar">
           <SearchIcon />
-          <input type="text" placeholder={activeGroup ? `Search in ${activeGroup}…` : "Search…"} value={search}
-            onChange={(e) => setSearch(e.target.value)} />
-          {search && <button className="search-clear" onClick={() => setSearch("")}>&times;</button>}
+          <input
+            type="text"
+            placeholder={
+              activeGroup ? t(`Search in ${activeGroup}…`) : t("Search…")
+            }
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="search-clear" onClick={() => setSearch("")}>
+              &times;
+            </button>
+          )}
         </div>
 
         <div className="poster-grid" ref={listRef} onScroll={handleScroll}>
           {visible.length === 0 ? (
-            <div className="no-results">No series found</div>
+            <div className="no-results">{t("No series found")}</div>
           ) : (
             visible.map((s) => (
-              <MemoSeriesCard key={s.id} show={s} onClick={() => setSelectedShow(s)}
-                isFav={!!favorites[s.seriesId]} onToggleFav={onToggleFav}
-                lastEpisode={getLastEpisode(s.seriesId, watchProgress)} />
+              <MemoSeriesCard
+                key={s.id}
+                show={s}
+                onClick={() => setSelectedShow(s)}
+                isFav={!!favorites[s.seriesId]}
+                onToggleFav={onToggleFav}
+                lastEpisode={getLastEpisode(s.seriesId, watchProgress)}
+              />
             ))
           )}
           {visibleCount < filtered.length && (

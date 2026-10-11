@@ -1,4 +1,11 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { t, useLanguage } from "../i18n";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
 import { SearchIcon, TvIcon, FolderIcon, LinkIcon } from "../components/Icons";
 
 const BATCH_SIZE = 80;
@@ -6,10 +13,14 @@ const BATCH_SIZE = 80;
 // Keyboard activation helper (spec §2.9)
 const onActivate = (fn) => (e) => {
   if (e.target !== e.currentTarget) return;
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    fn();
+  }
 };
 
 function ChannelRow({ channel, onPlay, onToggleFav, isFav, isActive }) {
+  useLanguage();
   return (
     <div
       className={`ch-row${isActive ? " active" : ""}`}
@@ -20,18 +31,43 @@ function ChannelRow({ channel, onPlay, onToggleFav, isFav, isActive }) {
     >
       <div className="ch-row-logo">
         {channel.logo ? (
-          <img src={channel.logo} alt="" loading="lazy" onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
+          <img
+            src={channel.logo}
+            alt=""
+            loading="lazy"
+            onError={(e) => {
+              e.target.style.display = "none";
+              e.target.nextSibling.style.display = "flex";
+            }}
+          />
         ) : null}
-        <span className="ch-row-fallback" style={channel.logo ? { display: "none" } : {}}>
+        <span
+          className="ch-row-fallback"
+          style={channel.logo ? { display: "none" } : {}}
+        >
           {channel.name.charAt(0).toUpperCase()}
         </span>
       </div>
-      <span className="ch-row-name" title={channel.name}>{channel.name}</span>
+      <span className="ch-row-name" title={channel.name}>
+        {channel.name}
+      </span>
       <button
         className={`ch-row-fav${isFav ? " is-fav" : ""}`}
-        onClick={(e) => { e.stopPropagation(); onToggleFav(channel); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleFav(channel);
+        }}
       >
-        <svg viewBox="0 0 24 24" width="14" height="14" fill={isFav ? "#f1c40f" : "none"} stroke={isFav ? "#f1c40f" : "currentColor"} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill={isFav ? "#f1c40f" : "none"}
+          stroke={isFav ? "#f1c40f" : "currentColor"}
+          strokeWidth="2"
+        >
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
       </button>
     </div>
   );
@@ -47,6 +83,7 @@ function LivePage({
   onToggleFav,
   playingUrl,
 }) {
+  useLanguage();
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [activeGroup, setActiveGroup] = useState(null);
@@ -81,7 +118,10 @@ function LivePage({
     return list;
   }, [channels, activeGroup, search]);
 
-  const visibleChannels = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const visibleChannels = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount],
+  );
 
   const visibleGroups = useMemo(() => {
     if (!groupFilter.trim()) return groups;
@@ -89,19 +129,22 @@ function LivePage({
     return groups.filter((g) => g.toLowerCase().includes(q));
   }, [groups, groupFilter]);
 
-  const handleScroll = useCallback((e) => {
-    const el = e.target;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
-      setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filtered.length));
-    }
-  }, [filtered.length]);
+  const handleScroll = useCallback(
+    (e) => {
+      const el = e.target;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+        setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filtered.length));
+      }
+    },
+    [filtered.length],
+  );
 
   if (!channels.length) {
     return (
       <div className="empty-state">
         <TvIcon />
-        <h2>No live channels available</h2>
-        <p>Add a playlist to start watching live TV</p>
+        <h2>{t("No live channels available")}</h2>
+        <p>{t("Add a playlist to start watching live TV")}</p>
       </div>
     );
   }
@@ -111,14 +154,14 @@ function LivePage({
       {/* Groups panel - left */}
       <div className="groups-panel">
         <div className="groups-panel-header">
-          <span className="groups-panel-title">Groups</span>
+          <span className="groups-panel-title">{t("Groups")}</span>
           <span className="groups-panel-count">{groups.length}</span>
         </div>
         {groups.length > 12 && (
           <input
             type="text"
             className="group-filter"
-            placeholder="Filter groups…"
+            placeholder={t("Filter groups…")}
             value={groupFilter}
             onChange={(e) => setGroupFilter(e.target.value)}
           />
@@ -133,7 +176,7 @@ function LivePage({
               onClick={() => setActiveGroup(g)}
               onKeyDown={onActivate(() => setActiveGroup(g))}
             >
-              <span className="group-item-name">{g}</span>
+              <span className="group-item-name">{t(g)}</span>
               <span className="group-item-count">{groupCounts[g] || 0}</span>
             </div>
           ))}
@@ -143,18 +186,25 @@ function LivePage({
       {/* Channels panel - right */}
       <div className="channels-panel">
         <div className="channels-panel-header">
-          <h1 className="channels-panel-title">{activeGroup || "Channels"}</h1>
-          <span className="channel-count">{filtered.length} channels</span>
+          <h1 className="channels-panel-title">
+            {activeGroup || t("Channels")}
+          </h1>
+          <span className="channel-count">
+            {filtered.length} {t("Channels")}
+          </span>
         </div>
 
         <div className="search-bar">
           <SearchIcon />
           <input
             type="text"
-            placeholder={activeGroup ? `Search in ${activeGroup}…` : "Search…"}
+            placeholder={
+              activeGroup ? t(`Search in ${activeGroup}…`) : t("Search…")
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+
           {search && (
             <button className="search-clear" onClick={() => setSearch("")}>
               &times;
@@ -164,7 +214,7 @@ function LivePage({
 
         <div className="ch-list" ref={listRef} onScroll={handleScroll}>
           {visibleChannels.length === 0 ? (
-            <div className="no-results">No channels found</div>
+            <div className="no-results">{t("No channels found")}</div>
           ) : (
             visibleChannels.map((ch) => (
               <MemoChannelRow

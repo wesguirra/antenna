@@ -11,7 +11,7 @@ struct Sidebar: View {
                     .font(.system(size: 18, weight: .black, design: .rounded))
                     .foregroundStyle(LinearGradient(colors: [Theme.accent, Theme.accentBright],
                                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text("LiveBox")
+                Text("Antenna")
                     .font(.system(size: 14, weight: .semibold))
                     .tracking(2)
                     .foregroundStyle(Theme.text)

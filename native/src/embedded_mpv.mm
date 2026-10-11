@@ -1224,8 +1224,9 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                 if (propertyName == "path" &&
                     property->format == MPV_FORMAT_STRING &&
                     property->data) {
+                    // MPV_FORMAT_STRING property events contain a char**, not char*.
                     const auto* pathValue =
-                        static_cast<char*>(property->data);
+                        *static_cast<char**>(property->data);
                     session->snapshot.streamUrl = pathValue ? pathValue : "";
                     break;
                 }
@@ -1249,7 +1250,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                 if (propertyName == "aid" &&
                     property->format == MPV_FORMAT_STRING &&
                     property->data) {
-                    const auto* aidValue = static_cast<char*>(property->data);
+                    const auto* aidValue = *static_cast<char**>(property->data);
                     int64_t selectedTrackId = -1;
                     if (aidValue && parseIntegerString(aidValue, selectedTrackId)) {
                         updateSelectedAudioTrack(
@@ -1263,7 +1264,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                 if (propertyName == "sid" &&
                     property->format == MPV_FORMAT_STRING &&
                     property->data) {
-                    const auto* sidValue = static_cast<char*>(property->data);
+                    const auto* sidValue = *static_cast<char**>(property->data);
                     int64_t selectedTrackId = -1;
                     if (sidValue && parseIntegerString(sidValue, selectedTrackId)) {
                         updateSelectedSubtitleTrack(
@@ -1288,7 +1289,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                     property->format == MPV_FORMAT_STRING &&
                     property->data) {
                     const auto* aspectValue =
-                        static_cast<char*>(property->data);
+                        *static_cast<char**>(property->data);
                     session->snapshot.aspectOverride =
                         aspectValue ? aspectValue : "no";
                     break;
@@ -2504,6 +2505,22 @@ Napi::Value DisposeSession(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+Napi::Value AddSubtitle(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsString()) {
+        throw Napi::TypeError::New(env, "Expected session id and subtitle path.");
+    }
+    const auto session = getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
+    const std::string file = info[1].As<Napi::String>().Utf8Value();
+    const std::string title = info.Length() > 2 && info[2].IsString() ? info[2].As<Napi::String>().Utf8Value() : "OpenSubtitles";
+    const std::string language = info.Length() > 3 && info[3].IsString() ? info[3].As<Napi::String>().Utf8Value() : "";
+    const char* args[] = { "sub-add", file.c_str(), "select", title.c_str(), language.c_str(), nullptr };
+    const int result = mpv_command_async(session->handle, nextAsyncRequestId(), args);
+    if (result < 0) throw Napi::Error::New(env, mpv_error_string(result));
+    return env.Undefined();
+}
+
 Napi::Object Init(Napi::Env env, Napi::Object exports)
 {
     exports.Set("isSupported", Napi::Function::New(env, IsSupported));
@@ -2511,6 +2528,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("loadPlayback", Napi::Function::New(env, LoadPlayback));
     exports.Set("setBounds", Napi::Function::New(env, SetBounds));
     exports.Set("setPaused", Napi::Function::New(env, SetPaused));
+    exports.Set("addSubtitle", Napi::Function::New(env, AddSubtitle));
     exports.Set("seek", Napi::Function::New(env, Seek));
     exports.Set("setVolume", Napi::Function::New(env, SetVolume));
     exports.Set("setAudioTrack", Napi::Function::New(env, SetAudioTrack));

@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { t, useLanguage } from "../i18n";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { SearchIcon } from "./Icons";
 
 const MAX_RESULTS = 30;
@@ -16,7 +23,13 @@ function scoreMatch(name, query) {
   if (idx === 0) return 500 - name.length * 0.1;
   // Word-start match (preceded by space, dash, dot, paren)
   const prev = lower[idx - 1];
-  if (prev === " " || prev === "-" || prev === "." || prev === "(" || prev === "[") {
+  if (
+    prev === " " ||
+    prev === "-" ||
+    prev === "." ||
+    prev === "(" ||
+    prev === "["
+  ) {
     return 300 - name.length * 0.1;
   }
   // Anywhere
@@ -28,18 +41,25 @@ function scoreMatch(name, query) {
 function useCandidates(channels, movies, series) {
   return useMemo(() => {
     const list = [];
-    for (const c of channels) list.push({ type: "live", item: c, name: c.name });
+    for (const c of channels)
+      list.push({ type: "live", item: c, name: c.name });
     for (const m of movies) list.push({ type: "movie", item: m, name: m.name });
-    for (const s of series) list.push({ type: "series", item: s, name: s.name });
+    for (const s of series)
+      list.push({ type: "series", item: s, name: s.name });
     return list;
   }, [channels, movies, series]);
 }
 
 export default function Spotlight({
-  channels, movies, series,
-  onPlayLive, onPlayMovie, onOpenSeries,
+  channels,
+  movies,
+  series,
+  onPlayLive,
+  onPlayMovie,
+  onOpenSeries,
   onClose,
 }) {
+  useLanguage();
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef(null);
@@ -64,7 +84,9 @@ export default function Spotlight({
   }, [query, candidates]);
 
   // Reset highlight whenever the result set changes
-  useEffect(() => { setActiveIdx(0); }, [results]);
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [results]);
 
   // Keep the highlighted row in view
   useEffect(() => {
@@ -72,29 +94,35 @@ export default function Spotlight({
     if (el) el.scrollIntoView({ block: "nearest" });
   }, [activeIdx]);
 
-  const select = useCallback((r) => {
-    if (!r) return;
-    if (r.type === "live") onPlayLive(r.item);
-    else if (r.type === "movie") onPlayMovie(r.item);
-    else if (r.type === "series") onOpenSeries(r.item);
-    onClose();
-  }, [onPlayLive, onPlayMovie, onOpenSeries, onClose]);
-
-  const onKeyDown = useCallback((e) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
+  const select = useCallback(
+    (r) => {
+      if (!r) return;
+      if (r.type === "live") onPlayLive(r.item);
+      else if (r.type === "movie") onPlayMovie(r.item);
+      else if (r.type === "series") onOpenSeries(r.item);
       onClose();
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      select(results[activeIdx]);
-    }
-  }, [results, activeIdx, select, onClose]);
+    },
+    [onPlayLive, onPlayMovie, onOpenSeries, onClose],
+  );
+
+  const onKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIdx((i) => Math.min(i + 1, results.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIdx((i) => Math.max(i - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        select(results[activeIdx]);
+      }
+    },
+    [results, activeIdx, select, onClose],
+  );
 
   return (
     <div className="spotlight-backdrop" onClick={onClose}>
@@ -105,53 +133,73 @@ export default function Spotlight({
             ref={inputRef}
             type="text"
             className="spotlight-input"
-            placeholder="Search live, movies, series…"
+            placeholder={t("Search live, movies, series…")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
           />
+
           <kbd className="spotlight-kbd">esc</kbd>
         </div>
         {query.trim() && (
           <>
-          <div className="spotlight-results" ref={listRef}>
-            {results.length === 0 ? (
-              <div className="spotlight-empty">No matches</div>
-            ) : (
-              results.map((r, i) => (
-                <div
-                  key={`${r.type}-${r.item.id ?? r.item.url ?? r.item.seriesId}-${i}`}
-                  className={`spotlight-row${i === activeIdx ? " active" : ""}`}
-                  onClick={() => select(r)}
-                  onMouseEnter={() => setActiveIdx(i)}
-                >
-                  <span className={`spotlight-badge spotlight-badge-${r.type}`}>
-                    {r.type === "live" ? "LIVE" : r.type === "movie" ? "MOVIE" : "SERIES"}
-                  </span>
-                  <span className="spotlight-name">{r.name}</span>
-                  {r.item.group && <span className="spotlight-group">{r.item.group}</span>}
-                </div>
-              ))
-            )}
-          </div>
-          <div className="spotlight-footer">
-            <span className="spotlight-footer-count">
-              {results.length} result{results.length === 1 ? "" : "s"}
-              {results.length === MAX_RESULTS && (
-                <span className="spotlight-footer-cap"> · Top {MAX_RESULTS} shown — keep typing</span>
+            <div className="spotlight-results" ref={listRef}>
+              {results.length === 0 ? (
+                <div className="spotlight-empty">{t("No matches")}</div>
+              ) : (
+                results.map((r, i) => (
+                  <div
+                    key={`${r.type}-${r.item.id ?? r.item.url ?? r.item.seriesId}-${i}`}
+                    className={`spotlight-row${i === activeIdx ? " active" : ""}`}
+                    onClick={() => select(r)}
+                    onMouseEnter={() => setActiveIdx(i)}
+                  >
+                    <span
+                      className={`spotlight-badge spotlight-badge-${r.type}`}
+                    >
+                      {r.type === "live"
+                        ? t("LIVE")
+                        : r.type === "movie"
+                          ? "MOVIE"
+                          : "SERIES"}
+                    </span>
+                    <span className="spotlight-name">{r.name}</span>
+                    {r.item.group && (
+                      <span className="spotlight-group">{r.item.group}</span>
+                    )}
+                  </div>
+                ))
               )}
-            </span>
-            <span className="spotlight-footer-keys">
-              <kbd className="kbd">↑↓</kbd> navigate
-              <kbd className="kbd">↵</kbd> open
-              <kbd className="kbd">esc</kbd> close
-            </span>
-          </div>
+            </div>
+            <div className="spotlight-footer">
+              <span className="spotlight-footer-count">
+                {results.length}
+                {t("result")}
+                {results.length === 1 ? "" : "s"}
+                {results.length === MAX_RESULTS && (
+                  <span className="spotlight-footer-cap">
+                    {" "}
+                    · Top {MAX_RESULTS}
+                    {t("shown \u2014 keep typing")}
+                  </span>
+                )}
+              </span>
+              <span className="spotlight-footer-keys">
+                <kbd className="kbd">↑↓</kbd>
+                {t("navigate")}
+                <kbd className="kbd">↵</kbd>
+                {t("open")}
+                <kbd className="kbd">esc</kbd>
+                {t("close")}
+              </span>
+            </div>
           </>
         )}
         {!query.trim() && (
           <div className="spotlight-hint">
-            Type to search across {channels.length} channels, {movies.length} movies, {series.length} shows
+            {t("Type to search across")}
+            {channels.length} {t("channels,")} {movies.length} {t("movies,")}{" "}
+            {series.length} {t("shows")}
           </div>
         )}
       </div>

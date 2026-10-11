@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "LiveBox",
+    name: "Antenna",
     platforms: [.macOS(.v13)],
     dependencies: [
         .package(url: "https://github.com/tylerjonesio/vlckit-spm", from: "3.6.0"),
     ],
     targets: [
         .executableTarget(
-            name: "LiveBox",
+            name: "Antenna",
             dependencies: [
                 .product(name: "VLCKitSPM", package: "vlckit-spm"),
             ],

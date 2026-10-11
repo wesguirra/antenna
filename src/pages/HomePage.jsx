@@ -1,34 +1,31 @@
-import React, { useMemo } from "react";
-import { TvIcon, FolderIcon, LinkIcon, FilmIcon, MonitorIcon } from "../components/Icons";
+import { t, useLanguage } from "../i18n";
+import antennaMark from "../../icon.png";
+import React, { useMemo, useState } from "react";
+import {
+  TvIcon,
+  FolderIcon,
+  LinkIcon,
+  FilmIcon,
+  MonitorIcon,
+} from "../components/Icons";
 import Billboard from "../components/Billboard";
 import Shelf from "../components/Shelf";
 import PreviewCard from "../components/PreviewCard";
 
 function WelcomeLogo() {
   return (
-    <svg width="88" height="88" viewBox="0 0 512 512" fill="none">
-      <defs>
-        <linearGradient id="logo-grad" x1="100" y1="100" x2="420" y2="420">
-          <stop offset="0%" stopColor="var(--accent)" />
-          <stop offset="50%" stopColor="var(--accent-bright)" />
-          <stop offset="100%" stopColor="var(--accent)" />
-        </linearGradient>
-      </defs>
-      <rect width="512" height="512" rx="112" fill="#141218" />
-      <ellipse cx="256" cy="240" rx="120" ry="90" fill="var(--accent)" opacity="0.12" />
-      <rect x="106" y="120" width="300" height="200" rx="24" fill="#1e1c24" />
-      <rect x="106" y="120" width="300" height="200" rx="24" stroke="url(#logo-grad)" strokeWidth="6" fill="none" />
-      <path d="M350,100 Q370,80 390,100" stroke="url(#logo-grad)" strokeWidth="6" strokeLinecap="round" fill="none" opacity="0.5" />
-      <path d="M362,86 Q375,72 388,86" stroke="url(#logo-grad)" strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.8" />
-      <circle cx="375" cy="78" r="3" fill="var(--accent)" />
-      <polygon points="224,178 224,262 304,220" fill="white" />
-      <rect x="220" y="328" width="72" height="8" rx="4" fill="url(#logo-grad)" />
-      <rect x="246" y="320" width="20" height="16" rx="4" fill="url(#logo-grad)" />
-    </svg>
+    <img
+      className="welcome-logo"
+      src={antennaMark}
+      width="88"
+      height="88"
+      alt=""
+    />
   );
 }
 
 function FeatureItem({ icon, title, desc }) {
+  useLanguage();
   return (
     <div className="welcome-feature">
       <div className="welcome-feature-icon">{icon}</div>
@@ -45,6 +42,7 @@ function HomePage({
   movies,
   series,
   onPlay,
+  onPlayLive,
   onNavigate,
   onOpenFile,
   onOpenURL,
@@ -55,7 +53,29 @@ function HomePage({
   favorites,
   onToggleFav,
 }) {
-  // Continue Watching — match watchProgress to movies (verbatim from prior logic)
+  useLanguage();
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const highlights = useMemo(() => {
+    const picks = [];
+    for (let i = 0; i < 3; i++) {
+      if (movies[i]) picks.push({ ...movies[i], kind: "movie" });
+      if (series[i]) picks.push({ ...series[i], kind: "series" });
+    }
+    return picks;
+  }, [movies, series]);
+  const topRated = useMemo(
+    () =>
+      [...movies]
+        .filter((m) => Number(m.rating) > 0)
+        .sort((a, b) => Number(b.rating) - Number(a.rating))
+        .slice(0, 10),
+    [movies],
+  );
+  const favoriteChannels = useMemo(
+    () => channels.filter((c) => favorites?.[c.url || c.streamId]).slice(0, 20),
+    [channels, favorites],
+  );
+  // Resume movies and the most recent unfinished episode of each series.
   const continueItems = useMemo(() => {
     if (!watchProgress) return [];
     const items = [];
@@ -65,9 +85,22 @@ function HomePage({
         items.push({ ...m, progress: p, type: "movie" });
       }
     }
-    items.sort((a, b) => (b.progress.updatedAt || 0) - (a.progress.updatedAt || 0));
+    for (const show of series) {
+      const progress = Object.values(watchProgress)
+        .filter(
+          (p) =>
+            String(p.seriesId) === String(show.seriesId) &&
+            p.position > 30 &&
+            p.position < p.duration * 0.95,
+        )
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+      if (progress) items.push({ ...show, progress, type: "series" });
+    }
+    items.sort(
+      (a, b) => (b.progress.updatedAt || 0) - (a.progress.updatedAt || 0),
+    );
     return items.slice(0, 10);
-  }, [watchProgress, movies]);
+  }, [watchProgress, movies, series]);
 
   // Top movie genre rows — first 6 distinct groups, with their (capped) items.
   // Built in a SINGLE pass over `movies` and memoized: the old code re-ran a
@@ -113,14 +146,16 @@ function HomePage({
       <div className="welcome-page fade-in">
         <div className="welcome-hero">
           <WelcomeLogo />
-          <h1 className="welcome-title">LiveBox</h1>
-          <p className="welcome-sub">Your all-in-one streaming player for Live TV, Movies & Series</p>
+          <h1 className="welcome-title">Antenna</h1>
+          <p className="welcome-sub">{t("Your screen. Your stories.")}</p>
           <div className="welcome-actions">
             <button className="btn btn-primary btn-lg" onClick={onOpenURL}>
-              <LinkIcon /> Add Playlist URL
+              <LinkIcon />
+              {t("Add Playlist URL")}
             </button>
             <button className="btn btn-secondary btn-lg" onClick={onOpenFile}>
-              <FolderIcon /> Open M3U File
+              <FolderIcon />
+              {t("Open M3U File")}
             </button>
           </div>
         </div>
@@ -128,30 +163,32 @@ function HomePage({
         <div className="welcome-features">
           <FeatureItem
             icon={<MonitorIcon />}
-            title="Live TV"
-            desc="Watch thousands of live channels from around the world"
+            title={t("Live TV")}
+            desc={t("Your channels, always close.")}
           />
+
           <FeatureItem
             icon={<FilmIcon />}
-            title="Movies"
-            desc="Browse and stream movies on demand with subtitles"
+            title={t("Movies")}
+            desc={t("Browse and stream movies on demand with subtitles")}
           />
+
           <FeatureItem
             icon={<TvIcon size={22} />}
-            title="Series"
-            desc="Binge your favorite shows with full season support"
+            title={t("Series")}
+            desc={t("Binge your favorite shows with full season support")}
           />
         </div>
 
         <p className="welcome-hint">
-          Supports M3U playlists — Xtream <span className="kbd">get.php</span> URLs supported
+          {t("Connect your Xtream Codes account or M3U playlist to begin.")}
         </p>
       </div>
     );
   }
 
-  const featured = series[0] || movies[0] || null;
-  const featuredKind = series[0] ? "series" : "movie";
+  const featured = highlights[featuredIndex % (highlights.length || 1)] || null;
+  const featuredKind = featured?.kind || "movie";
   const featuredAction = featuredKind === "series" ? onOpenSeries : onPlay;
 
   const favs = favorites || {};
@@ -188,47 +225,121 @@ function HomePage({
         kind={featuredKind}
         onPlay={featuredAction}
         onMoreInfo={featuredAction}
+        onToggleFav={onToggleFav}
+        isFav={
+          featuredKind === "series"
+            ? seriesIsFav(featured || {})
+            : movieIsFav(featured || {})
+        }
+        eyebrow={t("Tonight, something worth watching.")}
       />
 
-      <Shelf
-        title="Continue Watching"
-        items={continueItems}
-        renderItem={renderMovieCard}
-      />
-
-      <Shelf
-        title="Recently Added Movies"
-        items={movies.slice(0, 20)}
-        renderItem={renderMovieCard}
-        onSeeAll={() => onNavigate("movies")}
-      />
-
-      <Shelf
-        title="Recently Added Series"
-        items={series.slice(0, 20)}
-        renderItem={renderSeriesCard}
-        onSeeAll={() => onNavigate("series")}
-      />
-
-      {movieGenreShelves.map(({ group, items }) => (
+      {highlights.length > 1 && (
+        <div className="hero-pagination" aria-label={t("Featured titles")}>
+          {highlights.map((item, index) => (
+            <button
+              key={`${item.kind}-${item.id ?? item.seriesId ?? index}`}
+              aria-label={item.name}
+              aria-pressed={index === featuredIndex % highlights.length}
+              className={
+                index === featuredIndex % highlights.length ? "active" : ""
+              }
+              onClick={() => setFeaturedIndex(index)}
+            />
+          ))}
+        </div>
+      )}
+      {!featured && (
+        <div className="home-live-intro">
+          <p className="billboard-eyebrow">
+            {t("Your channels, always close.")}
+          </p>
+          <h1>{t("Live TV")}</h1>
+          <p>{t("Pick a channel from the list")}</p>
+        </div>
+      )}
+      <div className="home-shelves">
         <Shelf
-          key={`mg-${group}`}
-          title={group}
-          items={items}
+          title={t("Continue Watching")}
+          items={continueItems}
+          renderItem={(item) =>
+            item.type === "series" ? (
+              <PreviewCard
+                item={item}
+                kind="series"
+                progress={item.progress}
+                isFav={seriesIsFav(item)}
+                onPlay={onOpenSeries}
+                onDetail={onOpenSeries}
+                onToggleFav={onToggleFav}
+              />
+            ) : (
+              renderMovieCard(item)
+            )
+          }
+        />
+
+        <Shelf
+          title={t("Recently Added Movies")}
+          items={movies.slice(0, 20)}
           renderItem={renderMovieCard}
           onSeeAll={() => onNavigate("movies")}
         />
-      ))}
 
-      {seriesGenreShelves.map(({ group, items }) => (
         <Shelf
-          key={`sg-${group}`}
-          title={group}
-          items={items}
+          title={t("Recently Added Series")}
+          items={series.slice(0, 20)}
           renderItem={renderSeriesCard}
           onSeeAll={() => onNavigate("series")}
         />
-      ))}
+
+        <Shelf
+          title={t("Highest rated in your library")}
+          items={topRated}
+          renderItem={(m, index) => (
+            <div className="ranked-card">
+              <span className="rank-number">{index + 1}</span>
+              {renderMovieCard(m)}
+            </div>
+          )}
+          onSeeAll={() => onNavigate("movies")}
+        />
+        <Shelf
+          title={t(
+            favoriteChannels.length ? "Your favorite channels" : "Live TV",
+          )}
+          items={
+            favoriteChannels.length ? favoriteChannels : channels.slice(0, 20)
+          }
+          renderItem={(ch) => (
+            <button className="home-live-card" onClick={() => onPlayLive(ch)}>
+              <span className="live-dot">{t("LIVE")}</span>
+              {ch.logo && <img src={ch.logo} alt="" loading="lazy" />}
+              <span>{ch.name}</span>
+            </button>
+          )}
+          onSeeAll={() => onNavigate("live")}
+        />
+        {movieGenreShelves.map(({ group, items }) => (
+          <Shelf
+            key={`mg-${group}`}
+            title={t(group)}
+            items={items}
+            renderItem={renderMovieCard}
+            onSeeAll={() => onNavigate("movies")}
+          />
+        ))}
+
+        {seriesGenreShelves.map(({ group, items }) => (
+          <Shelf
+            key={`sg-${group}`}
+            title={t(group)}
+            items={items}
+            renderItem={renderSeriesCard}
+            onSeeAll={() => onNavigate("series")}
+          />
+        ))}
+      </div>
     </div>
   );
 }

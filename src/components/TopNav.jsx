@@ -1,3 +1,5 @@
+import { t, useLanguage } from "../i18n";
+import antennaMark from "../../icon.png";
 import React, { useState, useEffect } from "react";
 import { SearchIcon, SettingsIcon } from "./Icons";
 
@@ -9,7 +11,17 @@ const NAV = [
   { id: "favorites", label: "My List", always: true },
 ];
 
-export default function TopNav({ page, platform, hasTitlebar, hasContent, hasBillboard, scrollContainerRef, onNavigate, onOpenSearch }) {
+export default function TopNav({
+  page,
+  platform,
+  hasTitlebar,
+  hasContent,
+  hasBillboard,
+  scrollContainerRef,
+  onNavigate,
+  onOpenSearch,
+}) {
+  useLanguage();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -32,9 +44,14 @@ export default function TopNav({ page, platform, hasTitlebar, hasContent, hasBil
 
   return (
     <nav className={cls}>
-      <button type="button" className="topnav-brand" onClick={() => onNavigate("home")} aria-label="LiveBox home">
-        <span className="topnav-logo">LB</span>
-        <span className="topnav-wordmark">LIVEBOX</span>
+      <button
+        type="button"
+        className="topnav-brand"
+        onClick={() => onNavigate("home")}
+        aria-label={t("Antenna home")}
+      >
+        <img className="topnav-logo" src={antennaMark} alt="" />
+        <span className="topnav-wordmark">ANTENNA</span>
       </button>
       <div className="topnav-links">
         {NAV.filter((n) => n.always || hasContent).map((n) => (
@@ -45,19 +62,25 @@ export default function TopNav({ page, platform, hasTitlebar, hasContent, hasBil
             aria-current={page === n.id ? "page" : undefined}
             onClick={() => onNavigate(n.id)}
           >
-            {n.label}
+            {t(n.label)}
           </button>
         ))}
       </div>
       <div className="topnav-actions">
-        <button type="button" className="topnav-icon-btn" aria-label="Search" title="Search (⌘K)" onClick={onOpenSearch}>
+        <button
+          type="button"
+          className="topnav-icon-btn"
+          aria-label={t("Search")}
+          title={t("Search (⌘K)")}
+          onClick={onOpenSearch}
+        >
           <SearchIcon />
         </button>
         <button
           type="button"
           className={`topnav-icon-btn${page === "settings" ? " active" : ""}`}
-          aria-label="Settings"
-          title="Settings"
+          aria-label={t("Settings")}
+          title={t("Settings")}
           onClick={() => onNavigate("settings")}
         >
           <SettingsIcon />

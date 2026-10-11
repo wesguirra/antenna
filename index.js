@@ -1,10 +1,15 @@
-const { app, BrowserWindow, ipcMain, dialog, session } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, session, safeStorage, screen } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const https = require("https");
 const net = require("net");
 const { spawn } = require("child_process");
+const { OpenSubtitles } = require("./electron/opensubtitles.cjs");
+const { PictureInPicture } = require("./electron/pip.cjs");
+const subtitleFiles = new Set();
+let subtitles;
+let pip;
 
 // ── mpv playback engine (all platforms) ─────────────────────────────────────
 // Chromium's <video> cannot demux the provider's MKV/EAC3 catalog and chokes on
@@ -183,7 +188,9 @@ function nStartPoll() {
   }, 500);
 }
 
+let playbackGeneration = 0;
 function nLoad(url, startSec) {
+  playbackGeneration++;
   if (!nEnsureSession()) return false;
   nActive = true;
   nVisible = true;
@@ -511,7 +518,7 @@ function gracefulQuitMpv() {
 process.on("exit", killMpv);
 process.once("SIGINT", () => { gracefulQuitMpv(); setTimeout(() => { killMpv(); process.exit(0); }, 300); });
 process.once("SIGTERM", () => { gracefulQuitMpv(); setTimeout(() => { killMpv(); process.exit(0); }, 300); });
-app.on("will-quit", killMpv);
+app.on("will-quit", () => { killMpv(); for (const file of subtitleFiles) { try { fs.unlinkSync(file); } catch {} } });
 
 let appQuitting = false;
 app.on("before-quit", () => {
@@ -526,6 +533,7 @@ ipcMain.on("mpv-available", (e) => { e.returnValue = USE_NATIVE_EMBED || !!mpvPa
 let mpvPendingLoad = null; // load requested before the surface rect was known
 
 function execMpvLoad(url, startSec) {
+  playbackGeneration++;
   if (!startMpv()) return false;
   mpvActive = true;
   positionVideoHost();
@@ -564,6 +572,7 @@ ipcMain.handle("mpv-load", (_e, url, startSec) => {
   } catch { return false; }
 });
 ipcMain.handle("mpv-stop", () => {
+  if (pip?.active) pip.set(false);
   try { if (USE_NATIVE_EMBED) { mpvPendingLoad = null; nStop(); } else stopMpvPlayback(); } catch {}
 });
 ipcMain.handle("mpv-set-bounds", (_e, rect) => {
@@ -633,6 +642,7 @@ function createWindow() {
     },
   });
 
+  pip = new PictureInPicture(mainWindow, screen);
   mainWindow.once("ready-to-show", () => mainWindow.show());
 
   const isDev = process.env.ELECTRON_DEV === "1";
@@ -696,6 +706,8 @@ if (!gotLock) {
       }
     });
 
+    subtitles = new OpenSubtitles({ file: path.join(app.getPath("userData"), "opensubtitles.enc"), safeStorage,
+      apiKey: process.env.ANTENNA_OPENSUBTITLES_KEY || process.env.LIVEBOX_OPENSUBTITLES_KEY || "" });
     createWindow();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -730,20 +742,23 @@ ipcMain.handle("maximize-window", () => {
 });
 ipcMain.handle("close-window", () => mainWindow?.close());
 ipcMain.handle("is-maximized", () => mainWindow?.isMaximized());
-ipcMain.handle("toggle-fullscreen", () => {
+ipcMain.handle("toggle-fullscreen", async () => {
   if (!mainWindow) return false;
-  const next = !mainWindow.isFullScreen();
+  const fromPip = !!pip?.active;
+  if (fromPip) await pip.set(false);
+  const next = fromPip || !mainWindow.isFullScreen();
   mainWindow.setFullScreen(next);
   return next;
 });
 ipcMain.handle("is-fullscreen", () => mainWindow?.isFullScreen());
 
-ipcMain.handle("open-m3u-file", async () => {
+ipcMain.handle("open-m3u-file", async (_e, language) => {
+  const english = language === "en";
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: "Open M3U Playlist",
+    title: english ? "Open M3U Playlist" : "Abrir lista M3U",
     filters: [
-      { name: "M3U Playlists", extensions: ["m3u", "m3u8"] },
-      { name: "All Files", extensions: ["*"] },
+      { name: english ? "M3U Playlists" : "Listas M3U", extensions: ["m3u", "m3u8"] },
+      { name: english ? "All Files" : "Todos os arquivos", extensions: ["*"] },
     ],
     properties: ["openFile"],
   });
@@ -789,101 +804,31 @@ ipcMain.handle("fetch-url", async (_, url) => {
   return follow(url);
 });
 
-// OpenSubtitles.com API — supply your own key via the LIVEBOX_OPENSUBTITLES_KEY
-// env var (get one free at https://www.opensubtitles.com/en/consumers). When
-// unset, online subtitle search is simply disabled (returns no results).
-const OPENSUB_KEY = process.env.LIVEBOX_OPENSUBTITLES_KEY || "";
-const OPENSUB_HEADERS = { "User-Agent": "LiveBox v1.0", "Api-Key": OPENSUB_KEY, "Accept": "application/json" };
-
-function opensub(urlPath) {
-  return new Promise((resolve, reject) => {
-    const doReq = (u) => {
-      const full = u.startsWith("http") ? u : `https://api.opensubtitles.com${u}`;
-      https.get(full, { headers: OPENSUB_HEADERS }, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          res.resume();
-          return doReq(res.headers.location);
-        }
-        const chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => resolve(JSON.parse(Buffer.concat(chunks).toString("utf-8"))));
-        res.on("error", reject);
-      }).on("error", reject);
-    };
-    doReq(urlPath);
-  });
-}
-
-ipcMain.handle("search-subs", async (_, query, season, episode) => {
-  if (!OPENSUB_KEY) return [];   // online subtitle search disabled without a key
-  try {
-    let url = `/api/v1/subtitles?query=${encodeURIComponent(query)}&languages=ar,en,fr`;
-    if (season) url += `&season_number=${season}`;
-    if (episode) url += `&episode_number=${episode}`;
-    const data = await opensub(url);
-    if (!data.data?.length) return [];
-    // Best result per language
-    const seen = {};
-    const tracks = [];
-    for (const d of data.data) {
-      const a = d.attributes;
-      const lang = a.language || "und";
-      if (seen[lang]) continue;
-      seen[lang] = true;
-      const fileId = a.files?.[0]?.file_id;
-      if (!fileId) continue;
-      tracks.push({
-        id: tracks.length,
-        name: { en: "English", ar: "Arabic", fr: "French" }[lang] || lang,
-        lang,
-        fileId,
-      });
-    }
-    return tracks;
-  } catch {
-    return [];
-  }
+// Credentials remain in the main process, encrypted with the OS keychain.
+ipcMain.handle("subtitles-reset", () => subtitles.reset());
+ipcMain.handle("subtitles-status", () => subtitles.status());
+ipcMain.handle("subtitles-configure", (_e, config) => subtitles.configure(config));
+ipcMain.handle("subtitles-login", (_e, credentials) => subtitles.login(credentials));
+ipcMain.handle("subtitles-logout", () => subtitles.logout());
+ipcMain.handle("search-subs", (_e, query, season, episode) => subtitles.search(query, season, episode));
+ipcMain.handle("download-sub", (_e, fileId) => subtitles.download(fileId));
+ipcMain.handle("mpv-add-subtitle", async (_e, fileId, details) => {
+  const sessionId = nSid;
+  const generation = playbackGeneration;
+  const active = nActive || mpvActive;
+  if (!active) throw new Error("Start playback before downloading subtitles.");
+  const srt = await subtitles.download(fileId);
+  if (generation !== playbackGeneration || (USE_NATIVE_EMBED ? nSid !== sessionId || !nActive : !mpvActive)) throw new Error("Playback changed. Choose the subtitle again.");
+  const folder = path.join(app.getPath("temp"), "antenna-subtitles");
+  fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
+  const file = path.join(folder, `${process.pid}-${Date.now()}.srt`);
+  fs.writeFileSync(file, srt, { mode: 0o600 });
+  subtitleFiles.add(file);
+  const title = typeof details?.title === "string" ? details.title.slice(0,160) : "OpenSubtitles";
+  const language = typeof details?.language === "string" && /^[a-z]{2}(?:-[a-z]{2})?$/.test(details.language) ? details.language : "";
+  if (USE_NATIVE_EMBED) embeddedMpv.addSubtitle(nSid, file, title, language);
+  else mpvSend(["sub-add", file, "select", title, language]);
+  return true;
 });
-
-ipcMain.handle("download-sub", async (_, fileId) => {
-  if (!OPENSUB_KEY) return null;   // disabled without a key
-  try {
-    const postData = JSON.stringify({ file_id: fileId });
-    const dlInfo = await new Promise((resolve, reject) => {
-      const req = https.request({
-        hostname: "api.opensubtitles.com",
-        path: "/api/v1/download",
-        method: "POST",
-        headers: { ...OPENSUB_HEADERS, "Content-Type": "application/json", "Content-Length": postData.length },
-      }, (res) => {
-        const chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => resolve(JSON.parse(Buffer.concat(chunks).toString())));
-        res.on("error", reject);
-      });
-      req.on("error", reject);
-      req.write(postData);
-      req.end();
-    });
-    if (!dlInfo.link) return null;
-    // Download the actual SRT file
-    return new Promise((resolve, reject) => {
-      const doReq = (url) => {
-        const lib = url.startsWith("https") ? https : http;
-        lib.get(url, { headers: { "User-Agent": "LiveBox v1.0" } }, (res) => {
-          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            res.resume();
-            return doReq(res.headers.location);
-          }
-          const chunks = [];
-          res.on("data", (c) => chunks.push(c));
-          res.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
-          res.on("error", reject);
-        }).on("error", reject);
-      };
-      doReq(dlInfo.link);
-    });
-  } catch {
-    return null;
-  }
-});
+ipcMain.handle("pip-set", (_e, enabled) => pip?.set(!!enabled));
+ipcMain.handle("pip-status", () => !!pip?.active);

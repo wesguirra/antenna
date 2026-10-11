@@ -1,18 +1,26 @@
+import { t, useLanguage } from "../i18n";
 import React from "react";
 import { StarIcon, XIcon } from "../components/Icons";
 
 // Keyboard activation helper (spec §2.9)
 const onActivate = (fn) => (e) => {
   if (e.target !== e.currentTarget) return;
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    fn();
+  }
 };
 
 function RemoveBtn({ onClick }) {
+  useLanguage();
   return (
     <button
       className="fav-remove"
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      title="Remove from favorites"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      title={t("Remove from favorites")}
     >
       <XIcon />
     </button>
@@ -23,22 +31,35 @@ function getLastEpisode(seriesId, watchProgress) {
   if (!watchProgress) return null;
   let latest = null;
   for (const [, val] of Object.entries(watchProgress)) {
-    if (val.seriesId === seriesId && val.position > 10 && val.position < val.duration * 0.95) {
-      if (!latest || (val.updatedAt || 0) > (latest.updatedAt || 0)) latest = val;
+    if (
+      val.seriesId === seriesId &&
+      val.position > 10 &&
+      val.position < val.duration * 0.95
+    ) {
+      if (!latest || (val.updatedAt || 0) > (latest.updatedAt || 0))
+        latest = val;
     }
   }
   return latest;
 }
 
-function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchProgress, onOpenSeries }) {
+function FavoritesPage({
+  favorites,
+  onPlayLive,
+  onPlayMovie,
+  onToggleFav,
+  watchProgress,
+  onOpenSeries,
+}) {
+  useLanguage();
   const favList = Object.values(favorites);
 
   if (!favList.length) {
     return (
       <div className="empty-state">
         <StarIcon />
-        <h2>No Favorites</h2>
-        <p>Star channels, movies or series to save them here</p>
+        <h2>{t("No Favorites")}</h2>
+        <p>{t("Star channels, movies or series to save them here")}</p>
       </div>
     );
   }
@@ -46,18 +67,26 @@ function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchP
   const liveChannels = favList.filter((f) => f.tvgId !== undefined);
   const movieItems = favList.filter((f) => f.streamId !== undefined);
   const seriesItems = favList.filter((f) => f.seriesId !== undefined);
-  const otherItems = favList.filter((f) => f.tvgId === undefined && f.streamId === undefined && f.seriesId === undefined);
+  const otherItems = favList.filter(
+    (f) =>
+      f.tvgId === undefined &&
+      f.streamId === undefined &&
+      f.seriesId === undefined,
+  );
 
   return (
     <div className="page-content fade-in">
       <div className="page-header">
-        <h1 className="page-title">Favorites</h1>
-        <span className="channel-count">{favList.length} items</span>
+        <h1 className="page-title">{t("Favorites")}</h1>
+        <span className="channel-count">
+          {favList.length}
+          {t("items")}
+        </span>
       </div>
 
       {liveChannels.length > 0 && (
         <div className="fav-section">
-          <h2 className="fav-section-title fav-dot-live">Live TV</h2>
+          <h2 className="fav-section-title fav-dot-live">{t("Live TV")}</h2>
           <div className="ch-list">
             {liveChannels.map((ch) => (
               <div
@@ -70,7 +99,10 @@ function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchP
               >
                 <div className="ch-row-logo">
                   {ch.logo ? <img src={ch.logo} alt="" loading="lazy" /> : null}
-                  <span className="ch-row-fallback" style={ch.logo ? { display: "none" } : {}}>
+                  <span
+                    className="ch-row-fallback"
+                    style={ch.logo ? { display: "none" } : {}}
+                  >
                     {ch.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
@@ -84,11 +116,14 @@ function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchP
 
       {movieItems.length > 0 && (
         <div className="fav-section">
-          <h2 className="fav-section-title fav-dot-movie">Movies</h2>
+          <h2 className="fav-section-title fav-dot-movie">{t("Movies")}</h2>
           <div className="poster-row">
             {movieItems.map((m) => {
               const prog = watchProgress?.[m.url];
-              const hasProgress = prog && prog.position > 30 && prog.position < prog.duration * 0.95;
+              const hasProgress =
+                prog &&
+                prog.position > 30 &&
+                prog.position < prog.duration * 0.95;
               return (
                 <div
                   key={m.url || m.streamId}
@@ -100,15 +135,27 @@ function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchP
                 >
                   <div className="poster-img-wrap">
                     {m.poster ? (
-                      <img src={m.poster} alt="" loading="lazy" className="poster-img" />
+                      <img
+                        src={m.poster}
+                        alt=""
+                        loading="lazy"
+                        className="poster-img"
+                      />
                     ) : (
                       <div className="poster-fallback">{m.name.charAt(0)}</div>
                     )}
                     {hasProgress && (
                       <div className="poster-continue">
-                        <div className="poster-continue-text">{Math.floor(prog.position / 60)}m watched</div>
+                        <div className="poster-continue-text">
+                          {Math.floor(prog.position / 60)} {t("min watched")}
+                        </div>
                         <div className="poster-continue-bar">
-                          <div className="poster-continue-fill" style={{ width: `${Math.min((prog.position / prog.duration) * 100, 100)}%` }} />
+                          <div
+                            className="poster-continue-fill"
+                            style={{
+                              width: `${Math.min((prog.position / prog.duration) * 100, 100)}%`,
+                            }}
+                          />
                         </div>
                       </div>
                     )}
@@ -124,7 +171,7 @@ function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchP
 
       {seriesItems.length > 0 && (
         <div className="fav-section">
-          <h2 className="fav-section-title fav-dot-series">Series</h2>
+          <h2 className="fav-section-title fav-dot-series">{t("Series")}</h2>
           <div className="poster-row">
             {seriesItems.map((s) => {
               const lastEp = getLastEpisode(s.seriesId, watchProgress);
@@ -139,15 +186,27 @@ function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchP
                 >
                   <div className="poster-img-wrap">
                     {s.poster ? (
-                      <img src={s.poster} alt="" loading="lazy" className="poster-img" />
+                      <img
+                        src={s.poster}
+                        alt=""
+                        loading="lazy"
+                        className="poster-img"
+                      />
                     ) : (
                       <div className="poster-fallback">{s.name.charAt(0)}</div>
                     )}
                     {lastEp && (
                       <div className="poster-continue">
-                        <div className="poster-continue-text">S{lastEp.season}E{lastEp.ep}</div>
+                        <div className="poster-continue-text">
+                          S{lastEp.season}E{lastEp.ep}
+                        </div>
                         <div className="poster-continue-bar">
-                          <div className="poster-continue-fill" style={{ width: `${Math.min((lastEp.position / lastEp.duration) * 100, 100)}%` }} />
+                          <div
+                            className="poster-continue-fill"
+                            style={{
+                              width: `${Math.min((lastEp.position / lastEp.duration) * 100, 100)}%`,
+                            }}
+                          />
                         </div>
                       </div>
                     )}
@@ -163,7 +222,7 @@ function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchP
 
       {otherItems.length > 0 && (
         <div className="fav-section">
-          <h2 className="fav-section-title">Other</h2>
+          <h2 className="fav-section-title">{t("Other")}</h2>
           <div className="ch-list">
             {otherItems.map((item) => (
               <div
@@ -172,10 +231,14 @@ function FavoritesPage({ favorites, onPlayLive, onPlayMovie, onToggleFav, watchP
                 role={item.url ? "button" : undefined}
                 tabIndex={item.url ? 0 : undefined}
                 onClick={() => item.url && onPlayLive(item)}
-                onKeyDown={item.url ? onActivate(() => onPlayLive(item)) : undefined}
+                onKeyDown={
+                  item.url ? onActivate(() => onPlayLive(item)) : undefined
+                }
               >
                 <span className="ch-row-name">{item.name}</span>
-                {!item.url && <span className="no-stream-chip">no stream</span>}
+                {!item.url && (
+                  <span className="no-stream-chip">{t("no stream")}</span>
+                )}
                 <RemoveBtn onClick={() => onToggleFav(item)} />
               </div>
             ))}

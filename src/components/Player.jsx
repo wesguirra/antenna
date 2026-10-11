@@ -1,4 +1,11 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { t, useLanguage } from "../i18n";
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { XIcon } from "./Icons";
 import { storageGet, storageSet } from "../utils/storage";
 
@@ -25,57 +32,212 @@ function seriesPrefKey(channel) {
 // HLS). When true, the component skips <video>/hls.js entirely and drives mpv
 // over IPC; mpv draws into a native window steered over .mpv-surface. Available
 // on Windows (bundled mpv.exe) and macOS (bundled or Homebrew/MacPorts mpv).
-const MPV = typeof window !== "undefined" && window.electron?.mpvAvailable === true;
+const MPV =
+  typeof window !== "undefined" && window.electron?.mpvAvailable === true;
 
 // Where mpv writes its logs, for the "send us the log" error hints — differs by
 // OS (Electron userData dir). Best-effort string; purely informational.
-const LOG_DIR_HINT = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform)
-  ? "~/Library/Application Support/LiveBox"
-  : "%APPDATA%\\LiveBox";
+
 
 // Lazy-load hls.js the first time the player needs it. The chunk is ~200KB
 // and the welcome/browse screens never touch it, so paying that cost up front
 // is wasted bandwidth. Cached promise = single fetch even with rapid switches.
 let hlsModulePromise = null;
 function loadHls() {
-  if (!hlsModulePromise) hlsModulePromise = import("hls.js").then((m) => m.default);
+  if (!hlsModulePromise)
+    hlsModulePromise = import("hls.js").then((m) => m.default);
   return hlsModulePromise;
 }
 
 function PlayIcon() {
-  return <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><polygon points="6,4 20,12 6,20" /></svg>;
+  useLanguage();
+  return (
+    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+      <polygon points="6,4 20,12 6,20" />
+    </svg>
+  );
 }
 function PauseIcon() {
-  return <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><rect x="5" y="4" width="4" height="16" /><rect x="15" y="4" width="4" height="16" /></svg>;
+  useLanguage();
+  return (
+    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+      <rect x="5" y="4" width="4" height="16" />
+      <rect x="15" y="4" width="4" height="16" />
+    </svg>
+  );
 }
 function VolumeIcon({ muted, level }) {
-  if (muted || level === 0) return <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2"/><line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2"/></svg>;
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/>{level > 0.3 && <path d="M14 7.97c1.21.92 2 2.39 2 4.03s-.79 3.11-2 4.03" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>}{level > 0.6 && <path d="M17 4.95c2.03 1.53 3.35 3.97 3.35 6.72S19.03 17.19 17 18.72" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>}</svg>;
+  useLanguage();
+  if (muted || level === 0)
+    return (
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <path d="M3 9v6h4l5 5V4L7 9H3z" />
+        <line
+          x1="23"
+          y1="9"
+          x2="17"
+          y2="15"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <line
+          x1="17"
+          y1="9"
+          x2="23"
+          y2="15"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+      </svg>
+    );
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+      <path d="M3 9v6h4l5 5V4L7 9H3z" />
+      {level > 0.3 && (
+        <path
+          d="M14 7.97c1.21.92 2 2.39 2 4.03s-.79 3.11-2 4.03"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      )}
+      {level > 0.6 && (
+        <path
+          d="M17 4.95c2.03 1.53 3.35 3.97 3.35 6.72S19.03 17.19 17 18.72"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      )}
+    </svg>
+  );
 }
 function FullscreenIcon() {
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 3h6v2H5v4H3V3zM15 3h6v6h-2V5h-4V3zM3 15h2v4h4v2H3v-6zM19 19h-4v2h6v-6h-2v4z"/></svg>;
+  useLanguage();
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+      <path d="M3 3h6v2H5v4H3V3zM15 3h6v6h-2V5h-4V3zM3 15h2v4h4v2H3v-6zM19 19h-4v2h6v-6h-2v4z" />
+    </svg>
+  );
 }
 function ExitFullscreenIcon() {
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 3v6H3v-2h4V3h2zM15 3h2v4h4v2h-6V3zM3 15h6v6H7v-4H3v-2zM15 21v-6h6v2h-4v4h-2z"/></svg>;
+  useLanguage();
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+      <path d="M9 3v6H3v-2h4V3h2zM15 3h2v4h4v2h-6V3zM3 15h6v6H7v-4H3v-2zM15 21v-6h6v2h-4v4h-2z" />
+    </svg>
+  );
 }
 function ChevronRightIcon() {
-  return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 6 15 12 9 18"/></svg>;
+  useLanguage();
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <polyline points="9 6 15 12 9 18" />
+    </svg>
+  );
 }
 function ChevronLeftIcon() {
-  return <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>;
+  useLanguage();
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  );
 }
 function ListIcon() {
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>;
+  useLanguage();
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
 }
 
 function SubtitleIcon() {
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="5" y1="12" x2="11" y2="12"/><line x1="13" y1="12" x2="19" y2="12"/><line x1="5" y1="16" x2="8" y2="16"/><line x1="10" y1="16" x2="19" y2="16"/></svg>;
+  useLanguage();
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="1" y="4" width="22" height="16" rx="2" />
+      <line x1="5" y1="12" x2="11" y2="12" />
+      <line x1="13" y1="12" x2="19" y2="12" />
+      <line x1="5" y1="16" x2="8" y2="16" />
+      <line x1="10" y1="16" x2="19" y2="16" />
+    </svg>
+  );
 }
 function AudioIcon() {
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>;
+  useLanguage();
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+    </svg>
+  );
 }
 
-export default function Player({ channel, onClose, channels, groups, favorites, onPlay, onToggleFav, contentType = "live", onSaveProgress, watchProgress, mode = "fullscreen", onModeChange, hasTitlebar = false }) {
+export default function Player({
+  channel,
+  onClose,
+  channels,
+  groups,
+  favorites,
+  onPlay,
+  onToggleFav,
+  contentType = "live",
+  onSaveProgress,
+  watchProgress,
+  mode = "fullscreen",
+  onModeChange,
+  hasTitlebar = false,
+}) {
+  useLanguage();
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
   const containerRef = useRef(null);
@@ -98,6 +260,139 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
   const [activeAudioTrack, setActiveAudioTrack] = useState(-1);
   const [subtitleTracks, setSubtitleTracks] = useState([]);
   const [activeSubTrack, setActiveSubTrack] = useState(-1);
+  const [pipActive, setPipActive] = useState(false);
+  const [onlineSubs, setOnlineSubs] = useState([]);
+  const [subSearch, setSubSearch] = useState("");
+  const [subError, setSubError] = useState("");
+  const [subNotice, setSubNotice] = useState("");
+  const subRequest = useRef(0);
+  const onlineTrackRef = useRef(null);
+  const clearOnlineTrack = () => {
+    if (onlineTrackRef.current) {
+      URL.revokeObjectURL(onlineTrackRef.current.src);
+      onlineTrackRef.current.remove();
+      onlineTrackRef.current = null;
+    }
+  };
+  const [pipError, setPipError] = useState("");
+  useEffect(() => {
+    let mounted = true;
+    const update = (active) => {
+      if (!mounted) return;
+      setPipActive(active);
+      document.body.classList.toggle("pip-active", active);
+    };
+    window.electron?.pip?.status().then(update);
+    const off = window.electron?.pip?.onChange(update);
+    return () => {
+      mounted = false;
+      subRequest.current++;
+      clearOnlineTrack();
+      off?.();
+      document.body.classList.remove("pip-active");
+      window.electron?.pip?.set(false);
+    };
+  }, []);
+  useEffect(() => {
+    subRequest.current++;
+    clearOnlineTrack();
+    setPipError("");
+    setOnlineSubs([]);
+    setSubError("");
+    setSubNotice("");
+    setSubsLoading(false);
+    setSubSearch(
+      (channel?.seriesName || channel?.name || "")
+        .replace(/\s*\(\d{4}\)\s*/g, " ")
+        .replace(/\s*-?\s*S\d+E\d+.*$/i, "")
+        .trim(),
+    );
+  }, [channel?.url]);
+  const togglePip = async () => {
+    try {
+      setPipError("");
+      if (window.electron?.pip) await window.electron.pip.set(!pipActive);
+      else if (videoRef.current) {
+        if (document.pictureInPictureElement)
+          await document.exitPictureInPicture();
+        else await videoRef.current.requestPictureInPicture();
+      }
+    } catch (err) {
+      setPipError(err.message);
+    }
+  };
+  const searchOnlineSubs = async () => {
+    const request = ++subRequest.current;
+    setSubsLoading(true);
+    setSubError("");
+    setSubNotice("");
+    try {
+      const results = await window.electron.searchSubs(
+        subSearch,
+        channel?.season,
+        channel?.episodeNum,
+      );
+      if (request === subRequest.current) {
+        setOnlineSubs(results);
+        if (!results.length)
+          setSubNotice(
+            "No subtitles found. Try another title or language in Settings.",
+          );
+      }
+    } catch (err) {
+      if (request === subRequest.current) setSubError(err.message);
+    } finally {
+      if (request === subRequest.current) setSubsLoading(false);
+    }
+  };
+  const loadOnlineSub = async (track) => {
+    const request = ++subRequest.current;
+    setSubsLoading(true);
+    setSubError("");
+    setSubNotice("");
+    try {
+      if (MPV)
+        await window.electron.subtitles.addToPlayer(track.fileId, {
+          title: track.name,
+          language: track.lang,
+        });
+      else {
+        const video = videoRef.current;
+        const srt = await window.electron.downloadSub(track.fileId);
+        if (request !== subRequest.current || video !== videoRef.current)
+          return;
+        clearOnlineTrack();
+        const el = document.createElement("track");
+        el.kind = "subtitles";
+        el.label = track.name;
+        el.srclang = track.lang;
+        el.src = URL.createObjectURL(
+          new Blob(
+            [
+              "WEBVTT\n\n" +
+                srt.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2"),
+            ],
+            { type: "text/vtt" },
+          ),
+        );
+        for (const existing of video.textTracks) existing.mode = "disabled";
+        el.addEventListener(
+          "load",
+          () => {
+            el.track.mode = "showing";
+          },
+          { once: true },
+        );
+        onlineTrackRef.current = el;
+        video.appendChild(el);
+      }
+      if (request === subRequest.current) setSubNotice("Subtitle loaded.");
+    } catch (err) {
+      if (request === subRequest.current) setSubError(err.message);
+    } finally {
+      if (request === subRequest.current) setSubsLoading(false);
+    }
+  };
   const [subsLoading, setSubsLoading] = useState(false);
   const [subOffset, setSubOffset] = useState(0);
   const [subSize, setSubSize] = useState(2.2);
@@ -108,21 +403,31 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
   const pausedRef = useRef(true);
   const menuOpenRef = useRef(false);
   const prefsAppliedRef = useRef(false); // saved track prefs applied for this load?
-  useEffect(() => { pausedRef.current = paused; }, [paused]);
-  useEffect(() => { menuOpenRef.current = showAudioMenu || showSubMenu; }, [showAudioMenu, showSubMenu]);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
+  useEffect(() => {
+    menuOpenRef.current = showAudioMenu || showSubMenu;
+  }, [showAudioMenu, showSubMenu]);
   const isLiveContent = contentType === "live";
   const isSeriesContent = contentType === "series";
   const episodes = channel?.episodes || [];
   const [epPanelOpen, setEpPanelOpen] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
-  const favKey = isSeriesContent ? channel?.seriesId : (channel?.url || channel?.streamId);
+  const favKey = isSeriesContent
+    ? channel?.seriesId
+    : channel?.url || channel?.streamId;
   const isFav = !!(favKey && favorites?.[favKey]);
 
   const handleFav = useCallback(() => {
     if (!channel || !onToggleFav) return;
     if (isSeriesContent && channel.seriesId) {
       // Favorite the series, not the episode
-      onToggleFav({ seriesId: channel.seriesId, name: channel.seriesName || channel.name, poster: channel.seriesPoster || channel.logo });
+      onToggleFav({
+        seriesId: channel.seriesId,
+        name: channel.seriesName || channel.name,
+        poster: channel.seriesPoster || channel.logo,
+      });
     } else {
       onToggleFav(channel);
     }
@@ -165,7 +470,10 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
   // Reflect OS window fullscreen state (for the dock's fullscreen toggle icon).
   useEffect(() => {
     if (!window.electron?.onFullscreen) return;
-    window.electron.isFullscreen?.().then((v) => setWinFullscreen(!!v)).catch(() => {});
+    window.electron
+      .isFullscreen?.()
+      .then((v) => setWinFullscreen(!!v))
+      .catch(() => {});
     return window.electron.onFullscreen(setWinFullscreen);
   }, []);
 
@@ -191,23 +499,40 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
     mpvDurRef.current = 0;
     prefsAppliedRef.current = false; // re-apply saved tracks for this new stream
     resetControlsTimer();
-    window.electron.mpv.load(url, startAt).then((ok) => {
-      if (ok === false) setError("Playback engine failed to start (mpv missing or blocked by antivirus)");
-    }).catch(() => setError("Playback engine failed to start"));
+    window.electron.mpv
+      .load(url, startAt)
+      .then((ok) => {
+        if (ok === false)
+          setError(
+            "Playback engine failed to start (mpv missing or blocked by antivirus)",
+          );
+      })
+      .catch(() => setError("Playback engine failed to start"));
 
-    const saveMeta = channel?.seriesId ? {
-      seriesId: channel.seriesId, season: channel.season,
-      ep: channel.episodeNum, epName: channel.name,
-    } : undefined;
+    const saveMeta = channel?.seriesId
+      ? {
+          seriesId: channel.seriesId,
+          season: channel.season,
+          ep: channel.episodeNum,
+          epName: channel.name,
+        }
+      : undefined;
     const doSave = () => {
-      if (contentType !== "live" && mpvPosRef.current > 10 && mpvDurRef.current > 30) {
+      if (
+        contentType !== "live" &&
+        mpvPosRef.current > 10 &&
+        mpvDurRef.current > 30
+      ) {
         onSaveProgress?.(url, mpvPosRef.current, mpvDurRef.current, saveMeta);
       }
     };
     const off = window.electron.mpv.onEvent((ev) => {
       if (ev.type === "engine") {
         setEngineState(ev.state);
-        if (ev.state === "ipc-failed") setError(`Playback engine is running but not responding (IPC failed) — please send mpv.log and mpv-stderr.log from ${LOG_DIR_HINT}`);
+        if (ev.state === "ipc-failed")
+          setError(
+            "The player did not respond. Try again.",
+          );
         return;
       }
       if (ev.type === "time" && typeof ev.value === "number") {
@@ -222,26 +547,48 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
         setPaused(!!ev.value);
       } else if (ev.type === "tracks") {
         // Native engine audio/subtitle tracks (libmpv). Map to the shared shape.
-        const aTracks = (ev.audio || []).map((t) => ({ id: t.id, name: t.title || t.language || `Track ${t.id}`, lang: t.language }));
-        const sTracks = (ev.sub || []).map((t) => ({ id: t.id, name: t.title || t.language || `Sub ${t.id}`, lang: t.language }));
+        const aTracks = (ev.audio || []).map((t) => ({
+          id: t.id,
+          name: t.title || t.language || `Track ${t.id}`,
+          lang: t.language,
+        }));
+        const sTracks = (ev.sub || []).map((t) => ({
+          id: t.id,
+          name: t.title || t.language || `Sub ${t.id}`,
+          lang: t.language,
+        }));
         setAudioTracks(aTracks);
         setSubtitleTracks(sTracks);
-        setActiveAudioTrack(typeof ev.selectedAudio === "number" ? ev.selectedAudio : -1);
-        setActiveSubTrack(typeof ev.selectedSub === "number" ? ev.selectedSub : -1);
+        setActiveAudioTrack(
+          typeof ev.selectedAudio === "number" ? ev.selectedAudio : -1,
+        );
+        setActiveSubTrack(
+          typeof ev.selectedSub === "number" ? ev.selectedSub : -1,
+        );
         // Apply this content's remembered audio/subtitle — but ONLY once the
         // track lists have actually populated (the first tracks event can arrive
         // empty; applying+latching then would silently lose the saved choice).
-        if (!prefsAppliedRef.current && (aTracks.length > 0 || sTracks.length > 0)) {
+        if (
+          !prefsAppliedRef.current &&
+          (aTracks.length > 0 || sTracks.length > 0)
+        ) {
           prefsAppliedRef.current = true;
           // Episode-specific pick wins; otherwise inherit the series-wide default.
           const sk = seriesPrefKey(channel);
           const pref = getTrackPref(url) || (sk ? getTrackPref(sk) : null);
           if (pref) {
-            if (typeof pref.aid === "number" && aTracks.some((t) => t.id === pref.aid)) {
+            if (
+              typeof pref.aid === "number" &&
+              aTracks.some((t) => t.id === pref.aid)
+            ) {
               window.electron.mpv.command("audio-track", pref.aid);
               setActiveAudioTrack(pref.aid);
             }
-            if (pref.sid === -1 || (typeof pref.sid === "number" && sTracks.some((t) => t.id === pref.sid))) {
+            if (
+              pref.sid === -1 ||
+              (typeof pref.sid === "number" &&
+                sTracks.some((t) => t.id === pref.sid))
+            ) {
               window.electron.mpv.command("sub-track", pref.sid);
               setActiveSubTrack(pref.sid);
             }
@@ -255,17 +602,24 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           const eps = channel.episodes;
           const idx = eps.findIndex((e2) => e2.url === url);
           if (idx >= 0 && idx < eps.length - 1) {
-            onPlay?.({ ...eps[idx + 1], episodes: eps, seriesName: channel.seriesName, seriesPoster: channel.seriesPoster });
+            onPlay?.({
+              ...eps[idx + 1],
+              episodes: eps,
+              seriesName: channel.seriesName,
+              seriesPoster: channel.seriesPoster,
+            });
             return;
           }
         }
         onClose?.();
       } else if (ev.type === "error") {
-        setError(`Playback failed: ${ev.message || "unknown error"}`);
+        setError(`Playback failed: ${ev.message || t("unknown error")}`);
       } else if (ev.type === "exit") {
         setError("Playback engine exited unexpectedly — press Retry");
       } else if (ev.type === "spawn-error") {
-        setError(`Playback engine could not start: ${ev.message || "unknown"} — check antivirus/SmartScreen`);
+        setError(
+          `Playback engine could not start: ${ev.message || "unknown"} — check antivirus/SmartScreen`,
+        );
       } else if (ev.type === "cmd-error") {
         setError(`Playback engine rejected a command (${ev.message})`);
       }
@@ -275,7 +629,9 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
     // surface it instead of leaving the user staring at nothing.
     const watchdog = setTimeout(() => {
       if (mpvPosRef.current === 0) {
-        setError(`Playback engine did not start playing (no signal after 15s) — please send mpv.log and mpv-stderr.log from ${LOG_DIR_HINT}`);
+        setError(
+          "The player did not respond. Try again.",
+        );
       }
     }, 15000);
     return () => {
@@ -295,7 +651,9 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
   // Stop playback and hide the native window only when the player truly closes.
   useEffect(() => {
     if (!MPV) return;
-    return () => { window.electron.mpv.stop(); };
+    return () => {
+      window.electron.mpv.stop();
+    };
   }, []);
 
   // Keep the native mpv window glued to the surface element's on-screen rect.
@@ -305,7 +663,12 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
     if (!el) return;
     const report = () => {
       const r = el.getBoundingClientRect();
-      window.electron.mpv.setBounds({ x: r.left, y: r.top, width: r.width, height: r.height });
+      window.electron.mpv.setBounds({
+        x: r.left,
+        y: r.top,
+        width: r.width,
+        height: r.height,
+      });
     };
     report();
     const ro = new ResizeObserver(report);
@@ -391,13 +754,25 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
       hls.attachMedia(video);
       const updateAudioTracks = () => {
         if (hls.audioTracks?.length > 0) {
-          setAudioTracks(hls.audioTracks.map((t, i) => ({ id: i, name: t.name || t.lang || `Track ${i + 1}`, lang: t.lang })));
+          setAudioTracks(
+            hls.audioTracks.map((t, i) => ({
+              id: i,
+              name: t.name || t.lang || `Track ${i + 1}`,
+              lang: t.lang,
+            })),
+          );
           setActiveAudioTrack(hls.audioTrack);
         }
       };
       const updateSubTracks = () => {
         if (hls.subtitleTracks?.length > 0) {
-          setSubtitleTracks(hls.subtitleTracks.map((t, i) => ({ id: i, name: t.name || t.lang || `Sub ${i + 1}`, lang: t.lang })));
+          setSubtitleTracks(
+            hls.subtitleTracks.map((t, i) => ({
+              id: i,
+              name: t.name || t.lang || `Sub ${i + 1}`,
+              lang: t.lang,
+            })),
+          );
           hls.subtitleDisplay = true;
         }
       };
@@ -416,13 +791,19 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
         if (data.fatal) {
           if (recoverAttempts >= 5) {
             if (lastHttpCode === 456) {
-              setError("Provider blocked this network (HTTP 456) — disable VPN and try again");
+              setError(
+                "Provider blocked this network (HTTP 456) — disable VPN and try again",
+              );
             } else if (lastHttpCode >= 400) {
               setError(`Stream failed to load (HTTP ${lastHttpCode})`);
             } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              setError(`Stream failed to play (decode error: ${data.details || "unknown"})`);
+              setError(
+                `Stream failed to play (decode error: ${data.details || "unknown"})`,
+              );
             } else {
-              setError(`Stream unavailable or failed to load (${data.details || data.type || "unknown error"})`);
+              setError(
+                `Stream unavailable or failed to load (${data.details || data.type || t("unknown error")})`,
+              );
             }
             hls.destroy();
             return;
@@ -449,9 +830,14 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
         if (cancelled) return;
         if (Hls.isSupported()) {
           setupHls(Hls);
-        } else if (video.canPlayType("application/vnd.apple.mpegurl") && isHlsUrl) {
+        } else if (
+          video.canPlayType("application/vnd.apple.mpegurl") &&
+          isHlsUrl
+        ) {
           video.src = url;
-          video.addEventListener("loadedmetadata", () => video.play().catch(() => {}));
+          video.addEventListener("loadedmetadata", () =>
+            video.play().catch(() => {}),
+          );
         }
       });
     } else {
@@ -466,7 +852,12 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           let enabledIdx = 0;
           for (let i = 0; i < video.audioTracks.length; i++) {
             const t = video.audioTracks[i];
-            tracks.push({ id: i, name: t.label || t.language || `Track ${i + 1}`, lang: t.language, native: true });
+            tracks.push({
+              id: i,
+              name: t.label || t.language || `Track ${i + 1}`,
+              lang: t.language,
+              native: true,
+            });
             if (t.enabled) enabledIdx = i;
           }
           setAudioTracks(tracks);
@@ -486,37 +877,19 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           } else if (video.error && video.readyState < 3 && retried) {
             const kinds = {
               1: "aborted",
-              2: "network error — check connection/VPN",
-              3: "decode error — unsupported codec",
-              4: "format not supported",
+              2: t("network error — check connection/VPN"),
+              3: t("decode error — unsupported codec"),
+              4: t("format not supported"),
             };
-            const detail = video.error.message ? `: ${video.error.message}` : "";
-            setError(`Failed to load stream (${kinds[video.error.code] || "unknown"}${detail})`);
+            const detail = video.error.message
+              ? `: ${video.error.message}`
+              : "";
+            setError(
+              `Failed to load stream (${kinds[video.error.code] || "unknown"}${detail})`,
+            );
           }
         }, 1500);
       });
-
-    }
-
-    // Search subtitles from OpenSubtitles API (for all non-live content)
-    if (contentType !== "live" && window.electron?.searchSubs) {
-      // Clean up query — strip provider prefixes, years, episode titles
-      let subQuery = (channel?.seriesName || channel?.name || "")
-        .replace(/^(CR|NF|AMZN|AMZ|DSNP|HBO|HMAX)\s*-\s*/i, "") // strip provider prefix
-        .replace(/\s*\(\d{4}\)\s*/g, " ") // strip year in parens
-        .replace(/\s*-\s*S\d+E\d+.*$/i, "") // strip S01E01 and episode title
-        .replace(/\s*S\d+E\d+.*$/i, "") // strip S01E01 without dash
-        .trim();
-      if (subQuery) {
-        setSubsLoading(true);
-        window.electron.searchSubs(subQuery, channel?.season, channel?.episodeNum).then((tracks) => {
-          if (tracks?.length > 0) {
-            setSubtitleTracks(tracks.map((t) => ({
-              id: t.id, name: t.name, lang: t.lang, fileId: t.fileId,
-            })));
-          }
-        }).catch(() => {}).finally(() => setSubsLoading(false));
-      }
     }
 
     let lastSaveTime = 0;
@@ -524,15 +897,21 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
     const saveType = contentType;
     const saveFn = onSaveProgress;
 
-    const saveMeta = channel?.seriesId ? {
-      seriesId: channel.seriesId,
-      season: channel.season,
-      ep: channel.episodeNum,
-      epName: channel.name,
-    } : undefined;
+    const saveMeta = channel?.seriesId
+      ? {
+          seriesId: channel.seriesId,
+          season: channel.season,
+          ep: channel.episodeNum,
+          epName: channel.name,
+        }
+      : undefined;
 
     const doSave = () => {
-      if (saveType !== "live" && video.currentTime > 10 && video.duration > 30) {
+      if (
+        saveType !== "live" &&
+        video.currentTime > 10 &&
+        video.duration > 30
+      ) {
         saveFn?.(saveUrl, video.currentTime, video.duration, saveMeta);
       }
     };
@@ -596,7 +975,12 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
         const idx = eps.findIndex((e) => e.url === saveUrl);
         if (idx >= 0 && idx < eps.length - 1) {
           const next = eps[idx + 1];
-          onPlay?.({ ...next, episodes: eps, seriesName: channel.seriesName, seriesPoster: channel.seriesPoster });
+          onPlay?.({
+            ...next,
+            episodes: eps,
+            seriesName: channel.seriesName,
+            seriesPoster: channel.seriesPoster,
+          });
         }
       }
     };
@@ -652,15 +1036,27 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           if (v) v.paused ? v.play().catch(() => {}) : v.pause();
           break;
         case "ArrowLeft":
-          if (!isLive && v) { e.preventDefault(); v.currentTime = Math.max(0, v.currentTime - 10); }
+          if (!isLive && v) {
+            e.preventDefault();
+            v.currentTime = Math.max(0, v.currentTime - 10);
+          }
           break;
         case "ArrowRight":
-          if (!isLive && v) { e.preventDefault(); v.currentTime = Math.min(v.duration || Infinity, v.currentTime + 10); }
+          if (!isLive && v) {
+            e.preventDefault();
+            v.currentTime = Math.min(
+              v.duration || Infinity,
+              v.currentTime + 10,
+            );
+          }
           break;
         case "m":
         case "M":
           e.preventDefault();
-          if (v) { v.muted = !v.muted; setMuted(v.muted); }
+          if (v) {
+            v.muted = !v.muted;
+            setMuted(v.muted);
+          }
           break;
         case "f":
         case "F":
@@ -668,7 +1064,9 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           if (mode === "inline") {
             onModeChange?.("fullscreen");
           } else if (containerRef.current) {
-            document.fullscreenElement ? document.exitFullscreen() : containerRef.current.requestFullscreen();
+            document.fullscreenElement
+              ? document.exitFullscreen()
+              : containerRef.current.requestFullscreen();
           }
           break;
         case "Escape":
@@ -676,8 +1074,10 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           e.preventDefault();
           if (panelOpen) setPanelOpen(false);
           else if (epPanelOpen) setEpPanelOpen(false);
-          else if (showSubMenu || showAudioMenu) { setShowSubMenu(false); setShowAudioMenu(false); }
-          else onClose();
+          else if (showSubMenu || showAudioMenu) {
+            setShowSubMenu(false);
+            setShowAudioMenu(false);
+          } else onClose();
           break;
         default:
           break;
@@ -685,7 +1085,16 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isLive, mode, onModeChange, panelOpen, epPanelOpen, showSubMenu, showAudioMenu, onClose]);
+  }, [
+    isLive,
+    mode,
+    onModeChange,
+    panelOpen,
+    epPanelOpen,
+    showSubMenu,
+    showAudioMenu,
+    onClose,
+  ]);
 
   // Scroll active channel into view
   useEffect(() => {
@@ -716,8 +1125,13 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
     const val = parseFloat(e.target.value);
     v.volume = val;
     setVolume(val);
-    if (val === 0) { v.muted = true; setMuted(true); }
-    else if (v.muted) { v.muted = false; setMuted(false); }
+    if (val === 0) {
+      v.muted = true;
+      setMuted(true);
+    } else if (v.muted) {
+      v.muted = false;
+      setMuted(false);
+    }
   };
 
   const toggleFullscreen = () => {
@@ -759,24 +1173,80 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
     onModeChange?.(isInline ? "fullscreen" : "inline");
   }, [isInline, onModeChange]);
 
+  const onlineSubtitleControls =
+    contentType !== "live" && window.electron?.subtitles ? (
+      <div className="online-subtitles">
+        <span className="subtitle-section-label">OpenSubtitles</span>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            searchOnlineSubs();
+          }}
+        >
+          <input
+            aria-label={t("Subtitle title")}
+            value={subSearch}
+            onChange={(e) => setSubSearch(e.target.value)}
+            placeholder={t("Movie or series title")}
+          />
+          <button
+            className="btn btn-sm btn-secondary"
+            disabled={subsLoading || !subSearch.trim()}
+          >
+            {subsLoading ? t("Loading…") : t("Search")}
+          </button>
+        </form>
+        {subError && <p role="alert">{t(subError)}</p>}
+        {subNotice && <p role="status">{t(subNotice)}</p>}
+        {onlineSubs.map((t) => (
+          <button
+            key={t.id}
+            className="mpv-panel-item"
+            disabled={subsLoading}
+            onClick={() => loadOnlineSub(t)}
+          >
+            {t.name}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
   // ── mpv render path: native video surface + a control DOCK below it.
   // The engine renders into a native view on TOP of the page (HTML can't overlay
   // it), so all controls live in a dock under the video. Track pickers swap the
   // dock's content in place (never pop up over the video, which would be hidden).
   if (MPV) {
     const menuOpen = showAudioMenu || showSubMenu;
-    const stateLabel = engineState === "starting" ? "starting…"
-      : engineState === "spawned" ? "starting engine…"
-      : engineState === "connected" ? "loading…" : "";
+    const stateLabel =
+      engineState === "starting"
+        ? t("starting…")
+        : engineState === "spawned"
+          ? t("starting engine…")
+          : engineState === "connected"
+            ? t("Loading…")
+            : "";
     // Dock auto-hides while playing; stays while paused or a picker is open.
-    const dockVisible = menuOpen || showControls || paused;
+    const dockVisible = pipActive || menuOpen || showControls || paused;
     const curl = channel?.url;
     const skey = seriesPrefKey(channel);
     // Save a pick for this episode AND (if it's a series) the whole series, so
     // the next episode inherits it.
-    const rememberTrack = (patch) => { saveTrackPref(curl, patch); if (skey) saveTrackPref(skey, patch); };
-    const pickAudio = (id) => { window.electron.mpv.command("audio-track", id); setActiveAudioTrack(id); rememberTrack({ aid: id }); setShowAudioMenu(false); };
-    const pickSub = (id) => { window.electron.mpv.command("sub-track", id); setActiveSubTrack(id); rememberTrack({ sid: id }); setShowSubMenu(false); };
+    const rememberTrack = (patch) => {
+      saveTrackPref(curl, patch);
+      if (skey) saveTrackPref(skey, patch);
+    };
+    const pickAudio = (id) => {
+      window.electron.mpv.command("audio-track", id);
+      setActiveAudioTrack(id);
+      rememberTrack({ aid: id });
+      setShowAudioMenu(false);
+    };
+    const pickSub = (id) => {
+      window.electron.mpv.command("sub-track", id);
+      setActiveSubTrack(id);
+      rememberTrack({ sid: id });
+      setShowSubMenu(false);
+    };
     return (
       <div
         className={`player-fullscreen player-${mode}${hasTitlebar ? " has-titlebar" : ""} player-mpv${!dockVisible ? " controls-hidden" : ""}`}
@@ -784,20 +1254,41 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
         onMouseMove={resetControlsTimer}
       >
         {/* Body row: the video surface, plus a side panel for the track pickers.
-            The panel shrinks the surface beside it (ResizeObserver re-reports the
-            smaller rect), so the native video stays VISIBLE — never goes black,
-            and the menu is over its own non-video area. */}
+             The panel shrinks the surface beside it (ResizeObserver re-reports the
+             smaller rect), so the native video stays VISIBLE — never goes black,
+             and the menu is over its own non-video area. */}
         <div className="mpv-body">
           <div className="mpv-stage">
             {error ? (
               <div className="player-wrap">
                 <div className="player-error">
-                  <div className="player-error-icon" aria-hidden="true">⚠</div>
-                  <div className="player-error-name">{channel?.name || "Unknown"}</div>
-                  <p>{error}</p>
+                  <div className="player-error-icon" aria-hidden="true">
+                    ⚠
+                  </div>
+                  <div className="player-error-name">
+                    {channel?.name || t("Unknown")}
+                  </div>
+                  <p>{t(error)}</p>
                   <div className="player-error-actions">
-                    <button className="btn btn-primary" onClick={() => { setError(null); setBuffering(true); setRetryNonce((n) => n + 1); }}>Retry</button>
-                    <button className="btn btn-secondary" onClick={onClose}>Go Back</button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setError(null);
+                        setBuffering(true);
+                        setRetryNonce((n) => n + 1);
+                      }}
+                    >
+                      {t("Retry")}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        window.electron?.pip?.set(false);
+                        onClose();
+                      }}
+                    >
+                      {t("Go Back")}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -809,16 +1300,34 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           {!error && showAudioMenu && (
             <div className="mpv-panel" role="menu">
               <div className="mpv-panel-head">
-                <span className="mpv-panel-title">Audio</span>
-                <button className="player-ctrl-btn" onClick={() => setShowAudioMenu(false)} title="Close" aria-label="Close"><XIcon /></button>
+                <span className="mpv-panel-title">{t("Audio")}</span>
+                <button
+                  className="player-ctrl-btn"
+                  onClick={() => setShowAudioMenu(false)}
+                  title={t("Close")}
+                  aria-label={t("Close")}
+                >
+                  <XIcon />
+                </button>
               </div>
               <div className="mpv-panel-list">
-                {audioTracks.length === 0 && <div className="mpv-panel-empty">Default audio only</div>}
+                {audioTracks.length === 0 && (
+                  <div className="mpv-panel-empty">
+                    {t("Default audio only")}
+                  </div>
+                )}
                 {audioTracks.map((t) => (
-                  <button key={t.id} role="menuitemradio" aria-checked={activeAudioTrack === t.id}
-                    className={`mpv-panel-item${activeAudioTrack === t.id ? " active" : ""}`} onClick={() => pickAudio(t.id)}>
+                  <button
+                    key={t.id}
+                    role="menuitemradio"
+                    aria-checked={activeAudioTrack === t.id}
+                    className={`mpv-panel-item${activeAudioTrack === t.id ? " active" : ""}`}
+                    onClick={() => pickAudio(t.id)}
+                  >
                     <span className="mpv-panel-item-name">{t.name}</span>
-                    {activeAudioTrack === t.id && <span className="mpv-panel-check">✓</span>}
+                    {activeAudioTrack === t.id && (
+                      <span className="mpv-panel-check">✓</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -827,20 +1336,41 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           {!error && showSubMenu && (
             <div className="mpv-panel" role="menu">
               <div className="mpv-panel-head">
-                <span className="mpv-panel-title">Subtitles</span>
-                <button className="player-ctrl-btn" onClick={() => setShowSubMenu(false)} title="Close" aria-label="Close"><XIcon /></button>
+                <span className="mpv-panel-title">{t("Subtitles")}</span>
+                <button
+                  className="player-ctrl-btn"
+                  onClick={() => setShowSubMenu(false)}
+                  title={t("Close")}
+                  aria-label={t("Close")}
+                >
+                  <XIcon />
+                </button>
               </div>
               <div className="mpv-panel-list">
-                <button role="menuitemradio" aria-checked={activeSubTrack === -1}
-                  className={`mpv-panel-item${activeSubTrack === -1 ? " active" : ""}`} onClick={() => pickSub(-1)}>
-                  <span className="mpv-panel-item-name">Off</span>
-                  {activeSubTrack === -1 && <span className="mpv-panel-check">✓</span>}
+                <button
+                  role="menuitemradio"
+                  aria-checked={activeSubTrack === -1}
+                  className={`mpv-panel-item${activeSubTrack === -1 ? " active" : ""}`}
+                  onClick={() => pickSub(-1)}
+                >
+                  <span className="mpv-panel-item-name">{t("Off")}</span>
+                  {activeSubTrack === -1 && (
+                    <span className="mpv-panel-check">✓</span>
+                  )}
                 </button>
+                {onlineSubtitleControls}
                 {subtitleTracks.map((t) => (
-                  <button key={t.id} role="menuitemradio" aria-checked={activeSubTrack === t.id}
-                    className={`mpv-panel-item${activeSubTrack === t.id ? " active" : ""}`} onClick={() => pickSub(t.id)}>
+                  <button
+                    key={t.id}
+                    role="menuitemradio"
+                    aria-checked={activeSubTrack === t.id}
+                    className={`mpv-panel-item${activeSubTrack === t.id ? " active" : ""}`}
+                    onClick={() => pickSub(t.id)}
+                  >
                     <span className="mpv-panel-item-name">{t.name}</span>
-                    {activeSubTrack === t.id && <span className="mpv-panel-check">✓</span>}
+                    {activeSubTrack === t.id && (
+                      <span className="mpv-panel-check">✓</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -849,29 +1379,61 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
         </div>
 
         {/* Transport dock. Collapsed out of layout when idle so the video
-            surface expands to fill the whole player (no reserved black strip);
-            it reappears — shrinking the video slightly — on mouse move. */}
+             surface expands to fill the whole player (no reserved black strip);
+             it reappears — shrinking the video slightly — on mouse move. */}
         {!error && dockVisible && (
           <div className="mpv-dock">
-            <button className="player-ctrl-btn" onClick={onClose} title="Back" aria-label="Back"><XIcon /></button>
-            <button className="player-ctrl-btn" onClick={() => window.electron.mpv.command("pause", !paused)} title={paused ? "Play" : "Pause"}>
+            {pipError && (
+              <span className="pip-error" role="alert">
+                {t(pipError)}
+              </span>
+            )}
+            <button
+              className="player-ctrl-btn"
+              onClick={() => {
+                window.electron?.pip?.set(false);
+                onClose();
+              }}
+              title={t("Back")}
+              aria-label={t("Back")}
+            >
+              <XIcon />
+            </button>
+            <button
+              className="player-ctrl-btn"
+              onClick={() => window.electron.mpv.command("pause", !paused)}
+              title={paused ? t("Play") : t("Pause")}
+            >
               {paused ? <PlayIcon /> : <PauseIcon />}
             </button>
 
             {isLiveContent ? (
               <>
-                <span className="player-live-badge">LIVE</span>
-                <span className="mpv-dock-title" title={channel?.name}>{channel?.name || "Unknown"}</span>
+                <span className="player-live-badge">{t("LIVE")}</span>
+                <span className="mpv-dock-title" title={channel?.name}>
+                  {channel?.name || t("Unknown")}
+                </span>
               </>
             ) : (
               <>
                 <span className="player-time">{formatTime(currentTime)}</span>
                 <input
-                  type="range" className="mpv-dock-seek" min={0} max={Math.max(1, Math.floor(duration))}
-                  value={Math.min(Math.floor(currentTime), Math.floor(duration))}
-                  onChange={(e) => { const t = Number(e.target.value); setCurrentTime(t); window.electron.mpv.command("seek", t); }}
-                  aria-label="Seek"
+                  type="range"
+                  className="mpv-dock-seek"
+                  min={0}
+                  max={Math.max(1, Math.floor(duration))}
+                  value={Math.min(
+                    Math.floor(currentTime),
+                    Math.floor(duration),
+                  )}
+                  onChange={(e) => {
+                    const t = Number(e.target.value);
+                    setCurrentTime(t);
+                    window.electron.mpv.command("seek", t);
+                  }}
+                  aria-label={t("Seek")}
                 />
+
                 <span className="player-time">{formatTime(duration)}</span>
               </>
             )}
@@ -879,33 +1441,118 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
             {stateLabel && <span className="mpv-dock-state">{stateLabel}</span>}
 
             <div className="mpv-dock-vol">
-              <button className="player-ctrl-btn" onClick={() => { const m = !muted; setMuted(m); window.electron.mpv.command("mute", m); }} title={muted ? "Unmute" : "Mute"}>
+              <button
+                className="player-ctrl-btn"
+                onClick={() => {
+                  const m = !muted;
+                  setMuted(m);
+                  window.electron.mpv.command("mute", m);
+                }}
+                title={muted ? t("Unmute") : t("Mute")}
+              >
                 <VolumeIcon muted={muted} level={volume} />
               </button>
               <input
-                type="range" className="mpv-dock-volbar" min={0} max={1} step={0.01}
+                type="range"
+                className="mpv-dock-volbar"
+                min={0}
+                max={1}
+                step={0.01}
                 value={muted ? 0 : volume}
-                onChange={(e) => { const val = Number(e.target.value); setVolume(val); setMuted(val === 0); window.electron.mpv.command("volume", Math.round(val * 100)); }}
-                aria-label="Volume"
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setVolume(val);
+                  setMuted(val === 0);
+                  window.electron.mpv.command("volume", Math.round(val * 100));
+                }}
+                aria-label={t("Volume")}
               />
             </div>
 
-            <button className={`player-ctrl-btn${showSubMenu ? " active" : ""}`} onClick={() => { setShowSubMenu((v) => !v); setShowAudioMenu(false); }} title="Subtitles"><SubtitleIcon /></button>
-            <button className={`player-ctrl-btn${showAudioMenu ? " active" : ""}`} onClick={() => { setShowAudioMenu((v) => !v); setShowSubMenu(false); }} title="Audio"><AudioIcon /></button>
-            <button className={`player-ctrl-btn player-fav-btn${isFav ? " is-fav" : ""}`} onClick={handleFav} title={isFav ? "Remove from favorites" : "Add to favorites"}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill={isFav ? "#f1c40f" : "none"} stroke={isFav ? "#f1c40f" : "currentColor"} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <button
+              className="player-ctrl-btn pip-toggle"
+              onClick={togglePip}
+              title={
+                pipActive ? t("Return to window") : t("Picture in Picture")
+              }
+              aria-label={
+                pipActive ? t("Return to window") : t("Picture in Picture")
+              }
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <rect x="2" y="4" width="20" height="16" rx="3" />
+                <rect
+                  x="12"
+                  y="11"
+                  width="8"
+                  height="6"
+                  rx="1"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+            <button
+              className={`player-ctrl-btn${showSubMenu ? " active" : ""}`}
+              onClick={() => {
+                setShowSubMenu((v) => !v);
+                setShowAudioMenu(false);
+              }}
+              title={t("Subtitles")}
+            >
+              <SubtitleIcon />
+            </button>
+            <button
+              className={`player-ctrl-btn${showAudioMenu ? " active" : ""}`}
+              onClick={() => {
+                setShowAudioMenu((v) => !v);
+                setShowSubMenu(false);
+              }}
+              title={t("Audio")}
+            >
+              <AudioIcon />
+            </button>
+            <button
+              className={`player-ctrl-btn player-fav-btn${isFav ? " is-fav" : ""}`}
+              onClick={handleFav}
+              title={isFav ? t("Remove from favorites") : t("Add to favorites")}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill={isFav ? "#f1c40f" : "none"}
+                stroke={isFav ? "#f1c40f" : "currentColor"}
+                strokeWidth="2"
+              >
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
             </button>
             {/* One zoom control per mode: live toggles inline↔fullscreen (needed
-                to grow it out of the pinned corner); VOD toggles OS fullscreen. */}
+               to grow it out of the pinned corner); VOD toggles OS fullscreen. */}
             {isLiveContent ? (
-              <button className="player-ctrl-btn" onClick={toggleMode} title={isInline ? "Expand" : "Pin to side"}>
+              <button
+                className="player-ctrl-btn"
+                onClick={toggleMode}
+                title={isInline ? t("Expand") : t("Pin to side")}
+              >
                 {isInline ? <FullscreenIcon /> : <ExitFullscreenIcon />}
               </button>
             ) : (
               <button
                 className="player-ctrl-btn"
-                onClick={() => window.electron.toggleFullscreen?.().then((v) => setWinFullscreen(!!v))}
-                title={winFullscreen ? "Exit full screen" : "Full screen"}
+                onClick={() =>
+                  window.electron
+                    .toggleFullscreen?.()
+                    .then((v) => setWinFullscreen(!!v))
+                }
+                title={winFullscreen ? t("Exit full screen") : t("Full screen")}
               >
                 {winFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
               </button>
@@ -917,71 +1564,93 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
   }
 
   return (
-    <div className={`player-fullscreen player-${mode}${hasTitlebar ? " has-titlebar" : ""}`} ref={containerRef}>
+    <div
+      className={`player-fullscreen player-${mode}${hasTitlebar ? " has-titlebar" : ""}`}
+      ref={containerRef}
+    >
       {/* Left side panel - live TV only, hidden in inline mode (LivePage shows the same list) */}
-      {isLiveContent && !isInline && <div
-        className={`player-panel${panelOpen ? " open" : ""}`}
-        onMouseLeave={() => setPanelOpen(false)}
-      >
-        {panelView === "groups" ? (
-          <>
-            <div className="panel-header">
-              <span className="panel-title">Groups</span>
-              <span className="panel-count">{groups.length}</span>
-            </div>
-            <div className="panel-list">
-              {groups.map((g) => (
-                <div
-                  key={g}
-                  className={`panel-group-item${selectedGroup === g ? " active" : ""}`}
-                  onClick={() => handleGroupClick(g)}
-                >
-                  <span className="panel-group-name">{g}</span>
-                  <span className="panel-group-count">{groupCounts[g] || 0}</span>
-                  <ChevronRightIcon />
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="panel-header">
-              <button className="panel-back" onClick={handleBackToGroups}>
-                <ChevronLeftIcon />
-              </button>
-              <span className="panel-title">{selectedGroup}</span>
-              <span className="panel-count">{groupChannels.length}</span>
-            </div>
-            <div className="panel-search">
-              <input
-                type="text"
-                placeholder={selectedGroup ? `Search in ${selectedGroup}…` : "Search…"}
-                value={chSearch}
-                onChange={(e) => setChSearch(e.target.value)}
-              />
-            </div>
-            <div className="panel-list">
-              {groupChannels.map((ch) => (
-                <div
-                  key={ch.id}
-                  className={`drawer-item${ch.url === channel?.url ? " active" : ""}`}
-                  onClick={() => onPlay(ch)}
-                >
-                  <div className="drawer-item-logo">
-                    {ch.logo ? (
-                      <img src={ch.logo} alt="" loading="lazy" onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
-                    ) : null}
-                    <span className="drawer-item-fallback" style={ch.logo ? { display: "none" } : {}}>
-                      {ch.name.charAt(0).toUpperCase()}
+      {isLiveContent && !isInline && (
+        <div
+          className={`player-panel${panelOpen ? " open" : ""}`}
+          onMouseLeave={() => setPanelOpen(false)}
+        >
+          {panelView === "groups" ? (
+            <>
+              <div className="panel-header">
+                <span className="panel-title">{t("Groups")}</span>
+                <span className="panel-count">{groups.length}</span>
+              </div>
+              <div className="panel-list">
+                {groups.map((g) => (
+                  <div
+                    key={g}
+                    className={`panel-group-item${selectedGroup === g ? " active" : ""}`}
+                    onClick={() => handleGroupClick(g)}
+                  >
+                    <span className="panel-group-name">{t(g)}</span>
+                    <span className="panel-group-count">
+                      {groupCounts[g] || 0}
                     </span>
+                    <ChevronRightIcon />
                   </div>
-                  <span className="drawer-item-name">{ch.name}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>}
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="panel-header">
+                <button className="panel-back" onClick={handleBackToGroups}>
+                  <ChevronLeftIcon />
+                </button>
+                <span className="panel-title">{selectedGroup}</span>
+                <span className="panel-count">{groupChannels.length}</span>
+              </div>
+              <div className="panel-search">
+                <input
+                  type="text"
+                  placeholder={
+                    selectedGroup
+                      ? t(`Search in ${selectedGroup}…`)
+                      : t("Search…")
+                  }
+                  value={chSearch}
+                  onChange={(e) => setChSearch(e.target.value)}
+                />
+              </div>
+              <div className="panel-list">
+                {groupChannels.map((ch) => (
+                  <div
+                    key={ch.id}
+                    className={`drawer-item${ch.url === channel?.url ? " active" : ""}`}
+                    onClick={() => onPlay(ch)}
+                  >
+                    <div className="drawer-item-logo">
+                      {ch.logo ? (
+                        <img
+                          src={ch.logo}
+                          alt=""
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                            e.target.nextSibling.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className="drawer-item-fallback"
+                        style={ch.logo ? { display: "none" } : {}}
+                      >
+                        {ch.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="drawer-item-name">{ch.name}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Hover trigger on left edge - live TV only, hidden in inline mode */}
       {isLiveContent && !isInline && (
@@ -995,43 +1664,76 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
       )}
 
       {/* Episode sidebar for series */}
-      {isSeriesContent && episodes.length > 0 && <div
-        className={`player-panel${epPanelOpen ? " open" : ""}`}
-        onMouseLeave={() => setEpPanelOpen(false)}
-      >
-        <div className="panel-header">
-          <span className="panel-title">{channel?.seriesName || "Episodes"}</span>
-          <span className="panel-count">{episodes.length}</span>
-        </div>
-        <div className="panel-list">
-          {episodes.map((ep) => {
-            const isCurrent = ep.url === channel?.url;
-            const prog = watchProgress?.[ep.url];
-            const isWatched = prog && prog.position > prog.duration * 0.9;
-            return (
-              <div
-                key={ep.id}
-                className={`ep-sidebar-item${isCurrent ? " active" : ""}${isWatched ? " watched" : ""}`}
-                onClick={() => onPlay?.({ ...ep, episodes, seriesName: channel?.seriesName, seriesPoster: channel?.seriesPoster })}
-              >
-                {ep.thumb && <img src={ep.thumb} alt="" className="ep-sidebar-thumb" loading="lazy" />}
-                {!ep.thumb && <span className="ep-sidebar-num">S{ep.season}E{ep.episodeNum}</span>}
-                <div className="ep-sidebar-info">
-                  <span className="ep-sidebar-label">S{ep.season}E{ep.episodeNum}</span>
-                  <span className="ep-sidebar-name">{ep.name}</span>
-                  {ep.duration && <span className="ep-sidebar-dur">{ep.duration}</span>}
-                  {prog && !isWatched && prog.position > 10 && (
-                    <div className="episode-progress-bar">
-                      <div className="episode-progress-fill" style={{ width: `${Math.min((prog.position / prog.duration) * 100, 100)}%` }} />
-                    </div>
+      {isSeriesContent && episodes.length > 0 && (
+        <div
+          className={`player-panel${epPanelOpen ? " open" : ""}`}
+          onMouseLeave={() => setEpPanelOpen(false)}
+        >
+          <div className="panel-header">
+            <span className="panel-title">
+              {channel?.seriesName || t("Episodes")}
+            </span>
+            <span className="panel-count">{episodes.length}</span>
+          </div>
+          <div className="panel-list">
+            {episodes.map((ep) => {
+              const isCurrent = ep.url === channel?.url;
+              const prog = watchProgress?.[ep.url];
+              const isWatched = prog && prog.position > prog.duration * 0.9;
+              return (
+                <div
+                  key={ep.id}
+                  className={`ep-sidebar-item${isCurrent ? " active" : ""}${isWatched ? " watched" : ""}`}
+                  onClick={() =>
+                    onPlay?.({
+                      ...ep,
+                      episodes,
+                      seriesName: channel?.seriesName,
+                      seriesPoster: channel?.seriesPoster,
+                    })
+                  }
+                >
+                  {ep.thumb && (
+                    <img
+                      src={ep.thumb}
+                      alt=""
+                      className="ep-sidebar-thumb"
+                      loading="lazy"
+                    />
+                  )}
+                  {!ep.thumb && (
+                    <span className="ep-sidebar-num">
+                      S{ep.season}E{ep.episodeNum}
+                    </span>
+                  )}
+                  <div className="ep-sidebar-info">
+                    <span className="ep-sidebar-label">
+                      S{ep.season}E{ep.episodeNum}
+                    </span>
+                    <span className="ep-sidebar-name">{ep.name}</span>
+                    {ep.duration && (
+                      <span className="ep-sidebar-dur">{ep.duration}</span>
+                    )}
+                    {prog && !isWatched && prog.position > 10 && (
+                      <div className="episode-progress-bar">
+                        <div
+                          className="episode-progress-fill"
+                          style={{
+                            width: `${Math.min((prog.position / prog.duration) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {isWatched && (
+                    <span className="ep-sidebar-check">&#10003;</span>
                   )}
                 </div>
-                {isWatched && <span className="ep-sidebar-check">&#10003;</span>}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>}
+      )}
       {isSeriesContent && episodes.length > 0 && (
         <div
           className={`panel-trigger${showControls ? " visible" : ""}`}
@@ -1047,19 +1749,46 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
         className="player-wrap"
         onMouseMove={resetControlsTimer}
         onClick={() => {
-          if (panelOpen) { setPanelOpen(false); return; }
-          if (epPanelOpen) { setEpPanelOpen(false); return; }
+          if (panelOpen) {
+            setPanelOpen(false);
+            return;
+          }
+          if (epPanelOpen) {
+            setEpPanelOpen(false);
+            return;
+          }
           togglePlay();
         }}
       >
         {error ? (
           <div className="player-error">
-            <div className="player-error-icon" aria-hidden="true">⚠</div>
-            <div className="player-error-name">{channel?.name || "Unknown"}</div>
-            <p>{error}</p>
+            <div className="player-error-icon" aria-hidden="true">
+              ⚠
+            </div>
+            <div className="player-error-name">
+              {channel?.name || t("Unknown")}
+            </div>
+            <p>{t(error)}</p>
             <div className="player-error-actions">
-              <button className="btn btn-primary" onClick={() => { setError(null); setBuffering(true); setRetryNonce((n) => n + 1); }}>Retry</button>
-              <button className="btn btn-secondary" onClick={onClose}>Go Back</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setError(null);
+                  setBuffering(true);
+                  setRetryNonce((n) => n + 1);
+                }}
+              >
+                {t("Retry")}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  window.electron?.pip?.set(false);
+                  onClose();
+                }}
+              >
+                {t("Go Back")}
+              </button>
             </div>
           </div>
         ) : (
@@ -1075,16 +1804,36 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
 
         {/* Top bar */}
         <div className={`player-top-bar${showControls ? " visible" : ""}`}>
-          <div className="player-channel-name">{channel?.name || "Unknown"}</div>
+          <div className="player-channel-name">
+            {channel?.name || t("Unknown")}
+          </div>
           <div className="player-top-actions">
             <button
               className={`player-ctrl-btn player-fav-btn${isFav ? " is-fav" : ""}`}
-              onClick={(e) => { e.stopPropagation(); handleFav(); }}
-              title={isFav ? "Remove from favorites" : "Add to favorites"}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFav();
+              }}
+              title={isFav ? t("Remove from favorites") : t("Add to favorites")}
             >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill={isFav ? "#f1c40f" : "none"} stroke={isFav ? "#f1c40f" : "currentColor"} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill={isFav ? "#f1c40f" : "none"}
+                stroke={isFav ? "#f1c40f" : "currentColor"}
+                strokeWidth="2"
+              >
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
             </button>
-            <button className="player-ctrl-btn" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+            <button
+              className="player-ctrl-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+            >
               <XIcon />
             </button>
           </div>
@@ -1100,22 +1849,36 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
           {!isLive && duration > 0 && (
             <div className="player-progress">
               <input
-                type="range" min={0} max={duration || 0} value={currentTime}
-                onChange={(e) => { const v = videoRef.current; if (v) v.currentTime = parseFloat(e.target.value); }}
+                type="range"
+                min={0}
+                max={duration || 0}
+                value={currentTime}
+                onChange={(e) => {
+                  const v = videoRef.current;
+                  if (v) v.currentTime = parseFloat(e.target.value);
+                }}
                 className="player-seek"
-                style={{ "--seek-pct": `${duration ? (currentTime / duration) * 100 : 0}%` }}
+                style={{
+                  "--seek-pct": `${duration ? (currentTime / duration) * 100 : 0}%`,
+                }}
               />
             </div>
           )}
           <div className="player-controls-row">
             <div className="player-controls-left">
               {isLiveContent && !isInline && (
-                <button className="player-ctrl-btn" onClick={() => setPanelOpen((v) => !v)}>
+                <button
+                  className="player-ctrl-btn"
+                  onClick={() => setPanelOpen((v) => !v)}
+                >
                   <ListIcon />
                 </button>
               )}
               {isSeriesContent && episodes.length > 0 && (
-                <button className="player-ctrl-btn" onClick={() => setEpPanelOpen((v) => !v)}>
+                <button
+                  className="player-ctrl-btn"
+                  onClick={() => setEpPanelOpen((v) => !v)}
+                >
                   <ListIcon />
                 </button>
               )}
@@ -1126,36 +1889,89 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
                 <VolumeIcon muted={muted} level={volume} />
               </button>
               <input
-                type="range" min={0} max={1} step={0.05}
-                value={muted ? 0 : volume} onChange={handleVolume}
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={muted ? 0 : volume}
+                onChange={handleVolume}
                 className="player-volume"
               />
+
               {isLive ? (
-                <span className="player-live-badge">LIVE</span>
+                <span className="player-live-badge">{t("LIVE")}</span>
               ) : (
-                <span className="player-time">{formatTime(currentTime)} / {formatTime(duration)}</span>
+                <span className="player-time">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
               )}
             </div>
             <div className="player-controls-right">
+              <button
+                className="player-ctrl-btn pip-toggle"
+                onClick={togglePip}
+                title={t(pipActive ? "Return to window" : "Picture in Picture")}
+                aria-label={t(
+                  pipActive ? "Return to window" : "Picture in Picture",
+                )}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <rect x="2" y="4" width="20" height="16" rx="3" />
+                  <rect
+                    x="12"
+                    y="11"
+                    width="8"
+                    height="6"
+                    rx="1"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
               {!isLiveContent && (
                 <>
                   <div className="track-menu-wrap">
-                    <button className="player-ctrl-btn" onClick={() => { setShowSubMenu((v) => !v); setShowAudioMenu(false); }} title="Subtitles">
-                      {subsLoading ? <div className="ctrl-spinner" /> : <SubtitleIcon />}
+                    <button
+                      className="player-ctrl-btn"
+                      onClick={() => {
+                        setShowSubMenu((v) => !v);
+                        setShowAudioMenu(false);
+                      }}
+                      title={t("Subtitles")}
+                    >
+                      {subsLoading ? (
+                        <div className="ctrl-spinner" />
+                      ) : (
+                        <SubtitleIcon />
+                      )}
                     </button>
                     {showSubMenu && (
-                      <div className="track-menu" onClick={(e) => e.stopPropagation()}>
-                        <div className="track-menu-title">Subtitles</div>
+                      <div
+                        className="track-menu"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="track-menu-title">{t("Subtitles")}</div>
                         <div
                           className={`track-menu-item${activeSubTrack === -1 ? " active" : ""}`}
                           onClick={() => {
-                            if (hlsRef.current) hlsRef.current.subtitleTrack = -1;
+                            if (hlsRef.current)
+                              hlsRef.current.subtitleTrack = -1;
                             const v = videoRef.current;
-                            if (v) for (let i = 0; i < v.textTracks.length; i++) v.textTracks[i].mode = "disabled";
+                            if (v)
+                              for (let i = 0; i < v.textTracks.length; i++)
+                                v.textTracks[i].mode = "disabled";
                             setActiveSubTrack(-1);
                             setShowSubMenu(false);
                           }}
-                        >Off</div>
+                        >
+                          {t("Off")}
+                        </div>
                         {subtitleTracks.map((t) => (
                           <div
                             key={t.id}
@@ -1163,18 +1979,33 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
                             onClick={async () => {
                               const v = videoRef.current;
                               if (!v) return;
-                              for (let i = 0; i < v.textTracks.length; i++) v.textTracks[i].mode = "disabled";
+                              for (let i = 0; i < v.textTracks.length; i++)
+                                v.textTracks[i].mode = "disabled";
                               // Reuse already-downloaded track
-                              let el = v.querySelector(`track[data-subid="${t.id}"]`);
+                              let el = v.querySelector(
+                                `track[data-subid="${t.id}"]`,
+                              );
                               if (el) {
                                 el.track.mode = "showing";
-                              } else if (t.fileId && window.electron?.downloadSub) {
+                              } else if (
+                                t.fileId &&
+                                window.electron?.downloadSub
+                              ) {
                                 setActiveSubTrack(t.id);
                                 setShowSubMenu(false);
-                                const srt = await window.electron.downloadSub(t.fileId);
+                                const srt = await window.electron.downloadSub(
+                                  t.fileId,
+                                );
                                 if (!srt) return;
-                                const vtt = "WEBVTT\n\n" + srt.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2");
-                                const blob = new Blob([vtt], { type: "text/vtt" });
+                                const vtt =
+                                  "WEBVTT\n\n" +
+                                  srt.replace(
+                                    /(\d{2}:\d{2}:\d{2}),(\d{3})/g,
+                                    "$1.$2",
+                                  );
+                                const blob = new Blob([vtt], {
+                                  type: "text/vtt",
+                                });
                                 el = document.createElement("track");
                                 el.kind = "subtitles";
                                 el.label = t.name;
@@ -1183,8 +2014,14 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
                                 el.setAttribute("data-subid", t.id);
                                 el.default = true;
                                 v.appendChild(el);
-                                el.addEventListener("load", () => { el.track.mode = "showing"; });
-                                setTimeout(() => { try { el.track.mode = "showing"; } catch {} }, 200);
+                                el.addEventListener("load", () => {
+                                  el.track.mode = "showing";
+                                });
+                                setTimeout(() => {
+                                  try {
+                                    el.track.mode = "showing";
+                                  } catch {}
+                                }, 200);
                                 return;
                               } else if (hlsRef.current) {
                                 hlsRef.current.subtitleTrack = t.id;
@@ -1192,17 +2029,36 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
                               setActiveSubTrack(t.id);
                               setShowSubMenu(false);
                             }}
-                          >{t.name}</div>
+                          >
+                            {t.name}
+                          </div>
                         ))}
-                        {subsLoading && <div className="track-menu-item disabled">Loading subtitles...</div>}
-                        {!subsLoading && subtitleTracks.length === 0 && <div className="track-menu-item disabled">No subtitles</div>}
+                        {onlineSubtitleControls}
+                        {subsLoading && (
+                          <div className="track-menu-item disabled">
+                            {t("Loading subtitles...")}
+                          </div>
+                        )}
+                        {!subsLoading && subtitleTracks.length === 0 && (
+                          <div className="track-menu-item disabled">
+                            {t("No subtitles")}
+                          </div>
+                        )}
                         {activeSubTrack !== -1 && (
                           <div className="sub-offset">
                             <div className="sub-offset-label">
-                              <span>Timing</span>
-                              <span className="sub-offset-val">{subOffset > 0 ? "+" : ""}{subOffset.toFixed(1)}s</span>
+                              <span>{t("Timing")}</span>
+                              <span className="sub-offset-val">
+                                {subOffset > 0 ? "+" : ""}
+                                {subOffset.toFixed(1)}s
+                              </span>
                             </div>
-                            <input type="range" min={-10} max={10} step={0.5} value={subOffset}
+                            <input
+                              type="range"
+                              min={-10}
+                              max={10}
+                              step={0.5}
+                              value={subOffset}
                               onChange={(e) => {
                                 const val = parseFloat(e.target.value);
                                 setSubOffset(val);
@@ -1215,45 +2071,81 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
                                     if (!tt._origTimes) {
                                       tt._origTimes = [];
                                       for (let j = 0; j < tt.cues.length; j++) {
-                                        tt._origTimes.push({ s: tt.cues[j].startTime, e: tt.cues[j].endTime });
+                                        tt._origTimes.push({
+                                          s: tt.cues[j].startTime,
+                                          e: tt.cues[j].endTime,
+                                        });
                                       }
                                     }
                                     // Apply offset from original times
                                     for (let j = 0; j < tt.cues.length; j++) {
-                                      tt.cues[j].startTime = tt._origTimes[j].s + val;
-                                      tt.cues[j].endTime = tt._origTimes[j].e + val;
+                                      tt.cues[j].startTime =
+                                        tt._origTimes[j].s + val;
+                                      tt.cues[j].endTime =
+                                        tt._origTimes[j].e + val;
                                     }
                                   }
                                 }
                               }}
                             />
+
                             {subOffset !== 0 && (
-                              <button className="sub-offset-reset" onClick={() => {
-                                const v = videoRef.current;
-                                if (v) {
-                                  for (let i = 0; i < v.textTracks.length; i++) {
-                                    const tt = v.textTracks[i];
-                                    if (tt.mode === "showing" && tt.cues && tt._origTimes) {
-                                      for (let j = 0; j < tt.cues.length; j++) {
-                                        tt.cues[j].startTime = tt._origTimes[j].s;
-                                        tt.cues[j].endTime = tt._origTimes[j].e;
+                              <button
+                                className="sub-offset-reset"
+                                onClick={() => {
+                                  const v = videoRef.current;
+                                  if (v) {
+                                    for (
+                                      let i = 0;
+                                      i < v.textTracks.length;
+                                      i++
+                                    ) {
+                                      const tt = v.textTracks[i];
+                                      if (
+                                        tt.mode === "showing" &&
+                                        tt.cues &&
+                                        tt._origTimes
+                                      ) {
+                                        for (
+                                          let j = 0;
+                                          j < tt.cues.length;
+                                          j++
+                                        ) {
+                                          tt.cues[j].startTime =
+                                            tt._origTimes[j].s;
+                                          tt.cues[j].endTime =
+                                            tt._origTimes[j].e;
+                                        }
                                       }
                                     }
                                   }
-                                }
-                                setSubOffset(0);
-                              }}>Reset</button>
+                                  setSubOffset(0);
+                                }}
+                              >
+                                {t("Reset")}
+                              </button>
                             )}
                             <div className="sub-offset-label sub-offset-gap">
-                              <span>Size</span>
-                              <span className="sub-offset-val">{subSize.toFixed(1)}</span>
+                              <span>{t("Size")}</span>
+                              <span className="sub-offset-val">
+                                {subSize.toFixed(1)}
+                              </span>
                             </div>
-                            <input type="range" min={1} max={4} step={0.2} value={subSize}
+                            <input
+                              type="range"
+                              min={1}
+                              max={4}
+                              step={0.2}
+                              value={subSize}
                               onChange={(e) => {
                                 const val = parseFloat(e.target.value);
                                 setSubSize(val);
                                 const v = videoRef.current;
-                                if (v) v.style.setProperty("--sub-size", val + "rem");
+                                if (v)
+                                  v.style.setProperty(
+                                    "--sub-size",
+                                    val + "rem",
+                                  );
                               }}
                             />
                           </div>
@@ -1262,12 +2154,22 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
                     )}
                   </div>
                   <div className="track-menu-wrap">
-                    <button className="player-ctrl-btn" onClick={() => { setShowAudioMenu((v) => !v); setShowSubMenu(false); }} title="Audio">
+                    <button
+                      className="player-ctrl-btn"
+                      onClick={() => {
+                        setShowAudioMenu((v) => !v);
+                        setShowSubMenu(false);
+                      }}
+                      title={t("Audio")}
+                    >
                       <AudioIcon />
                     </button>
                     {showAudioMenu && (
-                      <div className="track-menu" onClick={(e) => e.stopPropagation()}>
-                        <div className="track-menu-title">Audio</div>
+                      <div
+                        className="track-menu"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="track-menu-title">{t("Audio")}</div>
                         {audioTracks.map((t) => (
                           <div
                             key={t.id}
@@ -1276,7 +2178,8 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
                               if (t.native) {
                                 const v = videoRef.current;
                                 if (v?.audioTracks) {
-                                  for (let i = 0; i < v.audioTracks.length; i++) v.audioTracks[i].enabled = (i === t.id);
+                                  for (let i = 0; i < v.audioTracks.length; i++)
+                                    v.audioTracks[i].enabled = i === t.id;
                                 }
                               } else if (hlsRef.current) {
                                 hlsRef.current.audioTrack = t.id;
@@ -1284,9 +2187,15 @@ export default function Player({ channel, onClose, channels, groups, favorites, 
                               setActiveAudioTrack(t.id);
                               setShowAudioMenu(false);
                             }}
-                          >{t.name}</div>
+                          >
+                            {t.name}
+                          </div>
                         ))}
-                        {audioTracks.length === 0 && <div className="track-menu-item disabled">Default audio</div>}
+                        {audioTracks.length === 0 && (
+                          <div className="track-menu-item disabled">
+                            {t("Default audio")}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

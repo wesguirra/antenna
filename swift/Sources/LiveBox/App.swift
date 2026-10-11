@@ -2,12 +2,12 @@ import SwiftUI
 import AppKit
 
 @main
-struct LiveBoxApp: App {
+struct AntennaApp: App {
     @StateObject private var app = AppState()
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        WindowGroup("LiveBox") {
+        WindowGroup("Antenna") {
             ContentView()
                 .environmentObject(app)
                 .frame(minWidth: 960, minHeight: 640)

@@ -1,8 +1,8 @@
 {
-  "name": "livebox",
-  "version": "1.7.2",
-  "description": "LiveBox - M3U IPTV Player",
-  "author": "aimen08",
+  "name": "antenna",
+  "version": "1.8.0",
+  "description": "Antenna \u2014 your screen, your stories",
+  "author": "wesguirra (fork of LiveBox by aimen08)",
   "license": "GPL-3.0",
   "main": "index.js",
   "private": false,
@@ -14,7 +14,8 @@
     "dist:win": "cross-env ELECTRON_DIST=1 vite build && electron-builder --win",
     "dist:linux": "cross-env ELECTRON_DIST=1 vite build && electron-builder --linux deb && electron-builder --linux AppImage",
     "stage:mpv:mac": "node tools/stage-mpv-mac.mjs",
-    "dist:mac": "npm run build:native && npm run stage:mpv:mac && cross-env ELECTRON_DIST=1 vite build && electron-builder --mac"
+    "dist:mac": "npm run build:native && npm run stage:mpv:mac && cross-env ELECTRON_DIST=1 vite build && electron-builder --mac",
+    "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
@@ -32,12 +33,13 @@
     "vite": "^7.3.1"
   },
   "build": {
-    "appId": "com.aimen08.livebox",
-    "productName": "LiveBox",
+    "appId": "com.wesguirra.antenna",
+    "productName": "Antenna",
     "asar": true,
     "compression": "maximum",
     "directories": {
-      "buildResources": "build"
+      "buildResources": "build",
+      "output": "release"
     },
     "files": [
       "dist/index.html",
@@ -46,7 +48,10 @@
       "preload.js",
       "package.json",
       "!src",
-      "!**/*.map"
+      "!**/*.map",
+      "electron/**/*",
+      "LICENSE",
+      "README.md"
     ],
     "win": {
       "icon": "icon.png",
@@ -76,7 +81,9 @@
           "from": "native/runtime",
           "to": "native"
         }
-      ]
+      ],
+      "minimumSystemVersion": "26.0.0",
+      "identity": "-"
     },
     "dmg": {
       "contents": [
@@ -114,8 +121,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "aimen08",
-        "repo": "livebox"
+        "owner": "wesguirra",
+        "repo": "antenna"
       }
     ]
   }

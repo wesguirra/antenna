@@ -11,7 +11,7 @@ struct LoginView: View {
                     .font(.system(size: 56, weight: .black, design: .rounded))
                     .foregroundStyle(LinearGradient(colors: [Theme.accent, Theme.accentBright],
                                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text("LiveBox")
+                Text("Antenna")
                     .font(.system(size: 20, weight: .semibold))
                     .tracking(3)
                 Text("Paste your M3U playlist URL")

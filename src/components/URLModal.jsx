@@ -1,7 +1,9 @@
+import { t, useLanguage } from "../i18n";
 import React, { useState } from "react";
 import { XIcon } from "./Icons";
 
 export default function URLModal({ onClose, onSubmit }) {
+  useLanguage();
   const [url, setUrl] = useState("");
 
   const handleSubmit = (e) => {
@@ -18,10 +20,16 @@ export default function URLModal({ onClose, onSubmit }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
+      <div
+        className="modal-box"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
+      >
         <div className="modal-header">
-          <h2>Open M3U URL</h2>
-          <button className="btn-icon" onClick={onClose}><XIcon /></button>
+          <h2>{t("Open M3U URL")}</h2>
+          <button className="btn-icon" onClick={onClose}>
+            <XIcon />
+          </button>
         </div>
         <form onSubmit={handleSubmit}>
           <input
@@ -32,9 +40,22 @@ export default function URLModal({ onClose, onSubmit }) {
             onChange={(e) => setUrl(e.target.value)}
             autoFocus
           />
+
           <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={!url.trim()}>Load</button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+            >
+              {t("Cancel")}
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={!url.trim()}
+            >
+              {t("Load")}
+            </button>
           </div>
         </form>
       </div>

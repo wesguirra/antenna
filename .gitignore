@@ -16,3 +16,5 @@ build-res/
 # native addon build output (rebuild with: npm run build:native)
 native/build/
 native/runtime/
+
+release/

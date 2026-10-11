@@ -1,4 +1,11 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { t, useLanguage, formatRating } from "../i18n";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
 import { SearchIcon, StarIcon, FilmIcon } from "../components/Icons";
 import Billboard from "../components/Billboard";
 import Shelf from "../components/Shelf";
@@ -10,11 +17,18 @@ const SHELF_ITEM_CAP = 20;
 
 const onActivate = (fn) => (e) => {
   if (e.target !== e.currentTarget) return;
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    fn();
+  }
 };
 
 function MovieCard({ movie, onPlay, isFav, onToggleFav, progress }) {
-  const hasProgress = progress && progress.position > 30 && progress.position < progress.duration * 0.95;
+  useLanguage();
+  const hasProgress =
+    progress &&
+    progress.position > 30 &&
+    progress.position < progress.duration * 0.95;
   return (
     <div
       className="poster-card"
@@ -25,23 +39,40 @@ function MovieCard({ movie, onPlay, isFav, onToggleFav, progress }) {
     >
       <div className="poster-img-wrap">
         {movie.poster ? (
-          <img src={movie.poster} alt="" loading="lazy" className="poster-img" />
+          <img
+            src={movie.poster}
+            alt=""
+            loading="lazy"
+            className="poster-img"
+          />
         ) : (
           <div className="poster-fallback">{movie.name.charAt(0)}</div>
         )}
-        {movie.rating && <span className="poster-rating">{movie.rating}</span>}
+        {movie.rating && (
+          <span className="poster-rating">{formatRating(movie.rating)}</span>
+        )}
         <button
           className={`poster-fav${isFav ? " is-fav" : ""}`}
-          onClick={(e) => { e.stopPropagation(); onToggleFav(movie); }}
-          title={isFav ? "Remove from favorites" : "Add to favorites"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFav(movie);
+          }}
+          title={isFav ? t("Remove from favorites") : t("Add to favorites")}
         >
           <StarIcon />
         </button>
         {hasProgress && (
           <div className="poster-continue">
-            <div className="poster-continue-text">{Math.floor(progress.position / 60)}m watched</div>
+            <div className="poster-continue-text">
+              {Math.floor(progress.position / 60)} {t("min watched")}
+            </div>
             <div className="poster-continue-bar">
-              <div className="poster-continue-fill" style={{ width: `${Math.min((progress.position / progress.duration) * 100, 100)}%` }} />
+              <div
+                className="poster-continue-fill"
+                style={{
+                  width: `${Math.min((progress.position / progress.duration) * 100, 100)}%`,
+                }}
+              />
             </div>
           </div>
         )}
@@ -53,7 +84,15 @@ function MovieCard({ movie, onPlay, isFav, onToggleFav, progress }) {
 
 const MemoMovieCard = React.memo(MovieCard);
 
-function MoviesPage({ movies, groups, onPlay, favorites, onToggleFav, watchProgress }) {
+function MoviesPage({
+  movies,
+  groups,
+  onPlay,
+  favorites,
+  onToggleFav,
+  watchProgress,
+}) {
+  useLanguage();
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [activeGroup, setActiveGroup] = useState(null);
@@ -92,7 +131,10 @@ function MoviesPage({ movies, groups, onPlay, favorites, onToggleFav, watchProgr
     return list;
   }, [movies, activeGroup, search]);
 
-  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const visible = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount],
+  );
 
   const browseShelves = useMemo(() => {
     return groups.slice(0, BROWSE_SHELF_CAP).map((g) => ({
@@ -107,19 +149,22 @@ function MoviesPage({ movies, groups, onPlay, favorites, onToggleFav, watchProgr
     setBrowseMode(false);
   }, []);
 
-  const handleScroll = useCallback((e) => {
-    const el = e.target;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
-      setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filtered.length));
-    }
-  }, [filtered.length]);
+  const handleScroll = useCallback(
+    (e) => {
+      const el = e.target;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
+        setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filtered.length));
+      }
+    },
+    [filtered.length],
+  );
 
   if (!movies.length) {
     return (
       <div className="empty-state">
         <FilmIcon />
-        <h2>No movies available</h2>
-        <p>Add a playlist with VOD content to browse movies</p>
+        <h2>{t("No movies available")}</h2>
+        <p>{t("Add a playlist with VOD content to browse movies")}</p>
       </div>
     );
   }
@@ -127,11 +172,16 @@ function MoviesPage({ movies, groups, onPlay, favorites, onToggleFav, watchProgr
   if (browseMode) {
     return (
       <div className="movies-browse fade-in">
-        <Billboard item={movies[0]} kind="movie" onPlay={onPlay} onMoreInfo={onPlay} />
+        <Billboard
+          item={movies[0]}
+          kind="movie"
+          onPlay={onPlay}
+          onMoreInfo={onPlay}
+        />
         {browseShelves.map(({ group, items }) => (
           <Shelf
             key={group}
-            title={group}
+            title={t(group)}
             items={items}
             onSeeAll={() => openGroupGrid(group)}
             renderItem={(m) => (
@@ -155,14 +205,14 @@ function MoviesPage({ movies, groups, onPlay, favorites, onToggleFav, watchProgr
     <div className="browse-layout fade-in">
       <div className="groups-panel">
         <div className="groups-panel-header">
-          <span className="groups-panel-title">Movies</span>
+          <span className="groups-panel-title">{t("Movies")}</span>
           <span className="groups-panel-count">{groups.length}</span>
         </div>
         {groups.length > 12 && (
           <input
             type="text"
             className="group-filter"
-            placeholder="Filter groups…"
+            placeholder={t("Filter groups…")}
             value={groupFilter}
             onChange={(e) => setGroupFilter(e.target.value)}
           />
@@ -177,7 +227,7 @@ function MoviesPage({ movies, groups, onPlay, favorites, onToggleFav, watchProgr
               onClick={() => setActiveGroup(g)}
               onKeyDown={onActivate(() => setActiveGroup(g))}
             >
-              <span className="group-item-name">{g}</span>
+              <span className="group-item-name">{t(g)}</span>
               <span className="group-item-count">{groupCounts[g] || 0}</span>
             </div>
           ))}
@@ -186,27 +236,45 @@ function MoviesPage({ movies, groups, onPlay, favorites, onToggleFav, watchProgr
 
       <div className="channels-panel">
         <div className="channels-panel-header">
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setBrowseMode(true)}>
-            ← All movies
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setBrowseMode(true)}
+          >
+            {t("\u2190 All movies")}
           </button>
-          <h1 className="channels-panel-title">{activeGroup || "Movies"}</h1>
-          <span className="channel-count">{filtered.length} movies</span>
+          <h1 className="channels-panel-title">{activeGroup || t("Movies")}</h1>
+          <span className="channel-count">
+            {filtered.length} {t("Movies")}
+          </span>
         </div>
 
         <div className="search-bar">
           <SearchIcon />
-          <input type="text" placeholder={activeGroup ? `Search in ${activeGroup}…` : "Search…"} value={search}
-            onChange={(e) => setSearch(e.target.value)} />
-          {search && <button className="search-clear" onClick={() => setSearch("")}>&times;</button>}
+          <input
+            type="text"
+            placeholder={
+              activeGroup ? t(`Search in ${activeGroup}…`) : t("Search…")
+            }
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="search-clear" onClick={() => setSearch("")}>
+              &times;
+            </button>
+          )}
         </div>
 
         <div className="poster-grid" ref={listRef} onScroll={handleScroll}>
           {visible.length === 0 ? (
-            <div className="no-results">No movies found</div>
+            <div className="no-results">{t("No movies found")}</div>
           ) : (
             visible.map((m) => (
               <MemoMovieCard
-                key={m.id} movie={m} onPlay={onPlay}
+                key={m.id}
+                movie={m}
+                onPlay={onPlay}
                 isFav={!!favorites[m.url || m.streamId]}
                 onToggleFav={onToggleFav}
                 progress={watchProgress?.[m.url]}

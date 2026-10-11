@@ -2029,3 +2029,60 @@ html.player-locked, html.player-locked body { overflow: hidden; }
 }
 .mpv-chip:hover { background: rgba(255,255,255,0.16); color: var(--text); }
 .mpv-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Antenna: cinematic home, with calm typography and artwork taking the lead. */
+:root { --font-display: "DM Sans", -apple-system, sans-serif; --bg: #101012; --bg-deep: #080809; }
+.topnav-wordmark { font-family: var(--font-body); font-size: 22px; font-weight: 600; letter-spacing: 3px; }
+.topnav-logo { background: transparent; font-family: var(--font-body); color: var(--accent-bright); }
+.home-dashboard .billboard { height: min(76vh, 760px); min-height: 560px; margin-bottom: 0; }
+.home-dashboard .billboard-bg-img { object-position: center 30%; filter: brightness(.8); }
+.home-dashboard .billboard-scrim { background: linear-gradient(90deg,#080809 0%,rgba(8,8,9,.75) 28%,rgba(8,8,9,.05) 75%),linear-gradient(0deg,#101012 0%,transparent 45%); }
+.home-dashboard .billboard-content { padding: 0 5vw 110px; max-width: 730px; }
+.home-dashboard .billboard-title { font-size: clamp(40px,5vw,76px); line-height: 1.05; font-weight: 600; letter-spacing: -2px; }
+.billboard-eyebrow { font-size: 13px; letter-spacing: .4px; color: #d3d3dc; margin-bottom: 32px; }
+.billboard-kind { display: block; font-size: 11px; letter-spacing: 4px; margin-bottom: 16px; color: #d6d6df; }
+.home-dashboard .billboard-actions .btn-primary { background: #f5f5f5; color: #101012; border: none; box-shadow: none; }
+.home-dashboard .billboard-actions .btn-secondary { background: rgba(100,100,110,.5); border: none; }
+.home-dashboard .billboard-actions .btn { border-radius: 6px; padding: 13px 26px; font-size: 16px; }
+.home-dashboard .billboard-actions .btn:hover { opacity: .85; }
+.hero-pagination { display: flex; justify-content: flex-end; gap: 7px; padding: 0 24px; margin-top: -100px; height: 55px; position: relative; z-index: 2; }
+.hero-pagination button { width: 25px; height: 4px; padding: 0; background: #ffffff40; border: none; cursor: pointer; }
+.hero-pagination button.active { background: #fff; }
+.hero-pagination button:focus-visible { outline: 2px solid white; outline-offset: 6px; }
+.home-shelves { position: relative; z-index: 1; padding: 0 2vw 40px; }
+.home-shelves .shelf { margin-bottom: 34px; }
+.home-shelves .shelf-title { font-size: 21px; font-weight: 600; letter-spacing: -.4px; }
+.home-shelves .poster-img-wrap { border-radius: 7px; }
+.ranked-card { display: flex; align-items: flex-end; padding-left: 22px; position: relative; }
+.rank-number { position: absolute; left: -3px; bottom: -18px; z-index: 2; font-size: 120px; line-height: 1; font-weight: 600; color: #151515; -webkit-text-stroke: 2px #dedee6; pointer-events: none; }
+.ranked-card .preview-card { margin-left: 20px; }
+.home-live-card { position: relative; width: 220px; height: 140px; background: #1c1c22; border: 1px solid #ffffff12; border-radius: 8px; color: white; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; cursor:pointer; padding:18px; }
+.home-live-card img { width:70px; height:48px; object-fit:contain; }
+.home-live-card .live-dot { position:absolute; top:12px; right:12px; font-size:9px; color:#ff7474; letter-spacing:1px; }
+.welcome-title { font-size: 70px; font-weight: 600; letter-spacing: -3px; }
+.subtitle-settings { padding: 20px; }
+.subtitle-settings p { color: var(--text2); line-height: 1.5; margin-bottom: 14px; }
+.subtitle-settings form { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 20px; }
+.subtitle-settings label { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 160px; font-size: 12px; }
+.subtitle-settings input, .online-subtitles input { color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 10px; min-width: 0; }
+.subtitle-account { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.online-subtitles { padding:12px; border-bottom:1px solid var(--border); }
+.online-subtitles form { display:flex; gap:6px; margin:10px 0; }
+.online-subtitles input { width:100%; }
+.online-subtitles p { font-size:12px; color:var(--text2); line-height:1.5; margin:10px 0; }
+.subtitle-section-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text3); }
+body.pip-active .topnav, body.pip-active .main, body.pip-active .titlebar { display:none; }
+body.pip-active .player-fullscreen { inset:28px 0 0; width:100%; height:calc(100vh - 28px); border-radius:0; box-shadow:none; }
+body.pip-active::before { content:'Antenna'; position:fixed; top:0; left:0; right:0; height:28px; padding-left:85px; font:11px/28px var(--font-body); color:#999; background:#080809; -webkit-app-region:drag; }
+body.pip-active .mpv-dock { padding:6px; gap:5px; min-height:40px; }
+body.pip-active .mpv-dock-vol, body.pip-active .player-fav-btn, body.pip-active .mpv-dock-state { display:none; }
+body.pip-active .mpv-dock-title { font-size:11px; }
+body.pip-active .mpv-panel { width:200px; }
+body.pip-active .player-ctrl-btn { min-width:24px; width:24px; }
+@media (max-width:700px) { .home-dashboard .billboard-content { padding:0 24px 110px; } .home-dashboard .billboard-title { font-size:44px; } }
+
+.language-select{background:#242426;color:#fff;border:1px solid #444;border-radius:8px;padding:10px 14px;font:inherit;}
+
+.home-live-intro{padding:140px 5vw 40px}.home-live-intro h1{font-size:64px;letter-spacing:-3px}.home-live-intro p{color:#aaa}.pip-error{color:#ffb4b4;font-size:12px;}
+
+.topnav-logo{object-fit:contain;box-shadow:none!important}.welcome-logo{border-radius:22px;box-shadow:0 16px 48px rgba(0,0,0,.3)}

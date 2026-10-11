@@ -1,127 +1,43 @@
-# LiveBox
+# Antenna
 
-A modern, native IPTV player for Live TV, Movies, and Series — powered by **mpv/libmpv** so it plays virtually every container and codec (MKV, HEVC, EAC3, redirecting live HLS) that browser `<video>` can't. Built with Electron + React. Supports **Xtream Codes** and plain **M3U / M3U-plus** playlists.
+Sua tela. Suas histórias.
 
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-blue)
-![License](https://img.shields.io/badge/license-GPL--3.0-green)
+Antenna é um fork gratuito e de código aberto do [LiveBox](https://github.com/aimen08/livebox), com uma experiência de catálogo inspirada nos serviços de streaming. Não fornece canais, filmes ou credenciais: conecte sua própria conta Xtream Codes ou lista M3U.
 
-## Screenshots
+- Início com destaques, Minha lista, Continue assistindo (filmes e séries), categorias e avaliações do seu catálogo.
+- Português do Brasil por padrão; inglês disponível em **Configurações → Idioma**. A preferência é salva e a troca é imediata.
+- Picture-in-Picture: um mini-player flutuante, redimensionável e sempre visível. Usa a mesma janela e sessão de reprodução, preservando a posição do vídeo e evitando uma segunda conexão ao provedor. Volte à janela pelo mesmo botão. Não é o PiP do AVKit; enquanto ativo, o catálogo fica oculto.
+- OpenSubtitles: configure sua chave de API, os idiomas (`pt-br,en`) e sua conta em Configurações. No player, abra Legendas, busque o título e escolha um resultado. Séries incluem temporada e episódio na busca. Legendas são adicionadas à reprodução atual, inclusive ao mpv integrado no macOS.
+- A chave e o token do OpenSubtitles são criptografados com o armazenamento seguro do sistema; a senha não é salva. A conta do serviço determina a cota de downloads. [Documentação da API](https://opensubtitles.stoplight.io/docs/opensubtitles-api).
 
-| Home | Live TV (pinned player) |
-|------|------|
-| ![Home](docs/screenshots/home.png) | ![Live](docs/screenshots/live.png) |
-| **Movies** | **Series & episodes** |
-| ![Movies](docs/screenshots/movies.png) | ![Series detail](docs/screenshots/series-detail.png) |
-| **Settings** | **First launch** |
-| ![Settings](docs/screenshots/settings.png) | ![Welcome](docs/screenshots/welcome.png) |
+## macOS
 
-## Playback engine (mpv / libmpv)
+A implementação principal usa Electron + React e um player mpv integrado por um módulo nativo Objective-C++. O protótipo Swift herdado fica em `swift/`; os recursos descritos acima pertencem ao app principal.
 
-Instead of the browser's `<video>` element, LiveBox renders **all** playback through mpv, so it handles every container/codec, hardware decoding, and the provider quirks typical of IPTV (302-redirecting live HLS, relative segment paths, MKV+EAC3 VOD):
+O instalador de desenvolvimento atual é para Apple Silicon e macOS 26 ou posterior, devido às bibliotecas mpv compiladas nessa versão. O runtime do player é incluído no app: quem instala não precisa do Homebrew. O build local não é notarizado pela Apple.
 
-- **macOS** — an in-process **libmpv render-API** native addon draws the video into a view **inside the app window** (true in-window embedding, no separate/floating window). The required libmpv is bundled into the `.app`, so end users don't need anything installed.
-- **Windows** — a bundled **mpv** engine renders the video, steered over the player area and controlled over its JSON IPC.
-
-Both platforms share the same in-app controls (the renderer talks to one `mpv.*` contract).
-
-> **Supported OS:** macOS 14 (Sonoma) and newer (Apple Silicon), and Windows 10/11. Linux build scripts exist but the embedded engine isn't officially supported there yet.
-
-## Features
-
-### Content
-- **Live TV** — thousands of channels organized by group, with a fast lazy-loaded list
-- **Movies** — full VOD library with poster grid, search, and category filtering
-- **Series** — season/episode picker; episodes auto-advance
-- **Xtream Codes API** — auto-detects Xtream URLs and fetches live, VOD, and series with metadata
-- **M3U / M3U-plus** — open a local `.m3u`/`.m3u8` file or load from a URL; entries are classified into Live, Movies, and Series automatically (a plain live-only playlist loads entirely as channels)
-
-### Player
-- **Embedded video** with an auto-hiding control dock — play/pause, seek bar, volume, fullscreen
-- **Audio & subtitle pickers** — switch tracks from a dropdown; your pick is remembered per movie/episode and applied series-wide
-- **Fast keyframe seeking** tuned for HTTP VOD (no decode-lag stalls)
-- **Resume playback** — movies and series remember where you stopped
-- **Auto-play next** episode for series
-
-### Library & UI
-- **Favorites**, **Continue Watching**, and per-series **watch progress** (e.g. "S2E4")
-- **Persistent sessions** — credentials, favorites, and history survive restarts
-- **Spotlight search** (⌘/Ctrl+K), 8 accent colors, modern dashboard
-- **Over-the-air updates** via GitHub Releases (electron-updater)
-
-## Getting started
-
-### Prerequisites
-- [Node.js](https://nodejs.org/) v18+ (v20+ recommended)
-- **macOS dev:** libmpv + build tools — `brew install mpv dylibbundler` (Homebrew `mpv` ships `libmpv`)
-- **Windows dev:** the bundled `mpv.exe` is fetched by CI for packaged builds
-
-### Install & run
-```bash
-git clone https://github.com/aimen08/livebox.git
-cd livebox
-npm install
-
-# macOS: build the native libmpv addon once
-npm run build:native
-
-npm run dev     # Vite dev server + Electron with hot reload
+```sh
+npm ci
+brew install mpv dylibbundler
+npm run dist:mac
 ```
 
-### Build installers
-```bash
-npm run dist:mac     # macOS arm64 DMG (builds + bundles libmpv)
-npm run dist:win     # Windows NSIS installer
-```
-Releases are also built automatically by GitHub Actions on a `v*` tag (macOS on `macos-14` so the bundled libmpv stays Sonoma-compatible).
+Para desenvolvimento: `npm run build:native` e `npm start`. Para testar a interface sem player nativo, `npx vite`. A chave também pode ser configurada com `ANTENNA_OPENSUBTITLES_KEY`; a variável anterior `LIVEBOX_OPENSUBTITLES_KEY` é aceita por compatibilidade.
 
-### Optional: online subtitle search
-LiveBox can fetch subtitles from OpenSubtitles. Supply your own key (free at
-[opensubtitles.com/consumers](https://www.opensubtitles.com/en/consumers)):
-```bash
-export LIVEBOX_OPENSUBTITLES_KEY=your_key_here
-```
-When unset, online subtitle search is simply disabled.
-
-## Usage
-1. Launch the app.
-2. **Add Playlist URL** (Xtream or M3U) — or **Open M3U File** for a local playlist.
-3. Browse Live / Movies / Series; click anything to play.
-4. Star items for Favorites; progress is saved automatically.
-
-Xtream URL format (auto-detected):
-```
-http://server.com/get.php?username=USER&password=PASS&type=m3u_plus&output=ts
+```sh
+npm test
+# Teste real do Electron com perfil descartável e vídeo local:
+ANTENNA_SMOKE_VIDEO=/caminho/absoluto/video.mp4 npx electron tests/smoke.cjs
 ```
 
-## Tech stack
+Os testes automatizados verificam credenciais, busca por episódio, cota de downloads, segurança dos redirecionamentos e restauração da janela PiP. O teste do Electron verifica idioma, catálogo, reprodução nativa, PiP e seleção da legenda baixada (API simulada). Downloads reais exigem uma chave e conta pessoais do OpenSubtitles.
 
-| Component | Technology |
-|-----------|------------|
-| Desktop shell | Electron |
-| UI | React 18 + Vite |
-| Playback | mpv / libmpv (native addon on macOS, bundled mpv on Windows) |
-| Live HLS fallback | hls.js |
-| Packaging | electron-builder, electron-updater |
+## English
 
-## Project structure
-```
-livebox/
-├── index.js                 # Electron main: mpv engine, IPC, windows, OTA updates
-├── preload.js               # contextBridge IPC API
-├── native/                  # macOS libmpv render-API addon (embedded_mpv.mm, binding.gyp)
-├── tools/stage-mpv-mac.mjs  # bundles libmpv + deps into the .app
-├── src/
-│   ├── App.jsx              # root state, routing, playlist loading
-│   ├── components/          # Player, TopNav, Billboard, Shelf, PreviewCard, …
-│   ├── pages/               # Home, Live, Movies, Series, Favorites, Settings
-│   ├── utils/               # m3uParser, storage, contentFilter, db
-│   └── styles/global.css
-└── .github/workflows/release.yml   # CI: Windows + macOS build & release
-```
+Antenna is a free, open-source fork of LiveBox. Bring your own Xtream Codes account or M3U playlist. It adds a cinematic home, floating Picture-in-Picture and OpenSubtitles search/downloads in the current player. Brazilian Portuguese is the default; switch to English in **Settings → Language**. PiP reuses the main window and playback session, so the catalog is hidden while the floating player is active.
 
-## Acknowledgements
-- [mpv](https://mpv.io/) / libmpv — the playback engine.
-- The macOS embedding approach is adapted from [IPTVnator](https://github.com/4gray/iptvnator) (MIT).
+The main app uses Electron/React with native embedded mpv on macOS. The inherited experimental Swift app is separate. The current local macOS build targets Apple Silicon and macOS 26+, bundles the player runtime, and is not Apple-notarized. OpenSubtitles requires your API key and account; its daily download quota applies.
 
-## License
-[GPL-3.0](LICENSE)
+## Licença e créditos / License and credits
+
+GPL-3.0. Original LiveBox by [aimen08](https://github.com/aimen08/livebox). Antenna modifications by wesguirra. Original license and copyright notices are retained. Native embedded playback includes upstream work adapted from IPTVnator (MIT), with its existing attribution retained in the source.
