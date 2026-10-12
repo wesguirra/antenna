@@ -7,6 +7,7 @@ Antenna é um fork gratuito e de código aberto do [LiveBox](https://github.com/
 - Início com destaques, Minha lista, Continue assistindo (filmes e séries), categorias e avaliações do seu catálogo.
 - Português do Brasil por padrão; inglês disponível em **Configurações → Idioma**. A preferência é salva e a troca é imediata.
 - Player integrado no macOS, com controles inspirados no Apple TV, tipografia do sistema, linha do tempo e atalhos de 10 segundos. O instalador não abre um mpv externo.
+- Menu de episódios no player, com seleção de temporada, indicação do episódio atual e progresso de reprodução.
 - Prévias dos episódios aceitam os diferentes campos de imagem dos provedores; imagens indisponíveis usam a capa da série ou o número do episódio.
 - Picture-in-Picture: um mini-player flutuante, redimensionável e sempre visível. Usa a mesma janela e sessão de reprodução, preservando a posição do vídeo e evitando uma segunda conexão ao provedor. Volte à janela pelo mesmo botão. Não é o PiP do AVKit; enquanto ativo, o catálogo fica oculto.
 - OpenSubtitles: configure sua chave de API, os idiomas (`pt-br,en`) e sua conta em Configurações. No player, abra Legendas, busque o título e escolha um resultado. Séries incluem temporada e episódio na busca. Legendas são adicionadas à reprodução atual, inclusive ao mpv integrado no macOS.

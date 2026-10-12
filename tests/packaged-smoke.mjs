@@ -1,10 +1,11 @@
 // Run the signed executable itself: development Electron cannot catch dyld's
 // signed-app library restrictions. Uses an isolated profile and local media.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, createReadStream, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { createServer } from 'node:net';
+import { createServer as createHTTPServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 const appPath = resolve(process.env.ANTENNA_TEST_APP || 'release/mac-arm64/Antenna.app');
@@ -17,6 +18,19 @@ const port = server.address().port;
 await new Promise(r => server.close(r));
 const child = spawn(join(appPath, 'Contents/MacOS/Antenna'), [`--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1'], {stdio:'ignore'});
 const delay = ms => new Promise(r=>setTimeout(r,ms));
+const size=statSync(video).size;
+const videoServer=createHTTPServer((req,res)=>{
+  const range=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
+  const start=range ? Number(range[1]) : 0;
+  const end=range?.[2] ? Math.min(Number(range[2]),size-1) : size-1;
+  if(start>=size || end<start){res.writeHead(416,{'Content-Range':`bytes */${size}`});return res.end();}
+  const headers={'Content-Type':'video/mp4','Content-Length':end-start+1,'Accept-Ranges':'bytes'};
+  if(range)headers['Content-Range']=`bytes ${start}-${end}/${size}`;
+  res.writeHead(range?206:200,headers);
+  createReadStream(video,{start,end}).pipe(res);
+});
+await new Promise(r=>videoServer.listen(0,'127.0.0.1',r));
+const episodeURL=n=>`http://127.0.0.1:${videoServer.address().port}/${n}.mp4`;
 let socket;
 try {
   let target;
@@ -34,13 +48,13 @@ try {
   const call=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
   const js=async expression=>{
     const result=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
-    if(result.exceptionDetails) throw new Error(result.exceptionDetails.text);
+    if(result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
     return result.result.value;
   };
   await delay(700);
   assert.equal(await js('window.electron.playbackBackend'),'embedded');
   const poster='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="#354354"/></svg>').toString('base64');
-  const cache={baseUrl:'https://example.invalid',username:'fixture',cachedAt:Date.now(),channels:[],groups:[],movies:[{id:1,streamId:1,name:'Horizonte',url:pathToFileURL(video).href,poster,backdrop:poster,rating:8,group:'Cinema'}],movieGroups:['Cinema'],series:[{id:1,seriesId:1,name:'Série de teste',poster,group:'Séries',episodes:[{name:'Primeiro encontro',season:1,episodeNum:1,url:pathToFileURL(video).href,poster:'https://127.0.0.1:1/unavailable.jpg'}]}],seriesGroups:['Séries']};
+  const cache={baseUrl:'https://example.invalid',username:'fixture',cachedAt:Date.now(),channels:[],groups:[],movies:[{id:1,streamId:1,name:'Horizonte',url:pathToFileURL(video).href,poster,backdrop:poster,rating:8,group:'Cinema'}],movieGroups:['Cinema'],series:[{id:1,seriesId:1,name:'Série de teste',poster,group:'Séries',episodes:[{name:'Primeiro encontro',season:1,episodeNum:1,url:episodeURL(1),poster:'https://127.0.0.1:1/unavailable.jpg'},{name:'Segundo encontro',season:1,episodeNum:2,url:episodeURL(2),poster},{name:'Uma nova temporada',season:2,episodeNum:1,url:episodeURL(3),poster}]}],seriesGroups:['Séries']};
   await js(`localStorage.setItem('livebox_xtreamCreds',${JSON.stringify(JSON.stringify({baseUrl:cache.baseUrl,username:'fixture',password:'fixture'}))});localStorage.setItem('livebox_xtreamCache',${JSON.stringify(JSON.stringify(cache))});location.reload()`);
   await delay(1800);
   await js(`document.querySelector('.topnav-link:nth-child(4)').click()`);
@@ -68,9 +82,40 @@ try {
   assert.equal(await js('document.body.classList.contains("pip-active")'),true);
   await js('window.electron.pip.set(false)');await delay(500);
   assert.equal(await js('document.body.classList.contains("pip-active")'),false);
-  console.log('PASS: signed application loads embedded engine, decodes video, seeks, preserves PiP, and recovers failed episode artwork.');
+  await js(`document.querySelector('.mpv-back').click();document.querySelector('.topnav-link:nth-child(4)').click()`);
+  await delay(350);
+  await js(`document.querySelector('.series-detail .episode-row').click()`);
+  await delay(1000);
+  const widthBefore=await js(`document.querySelector('.mpv-surface').getBoundingClientRect().width`);
+  await js(`document.querySelector('.mpv-episodes-toggle').focus()`);
+  await call('Input.dispatchKeyEvent', {type:'keyDown', key:' ', code:'Space', windowsVirtualKeyCode:32});
+  await call('Input.dispatchKeyEvent', {type:'keyUp', key:' ', code:'Space', windowsVirtualKeyCode:32});
+  await delay(300);
+  assert.equal(await js(`document.querySelector('.mpv-episodes-toggle').getAttribute('aria-expanded')`),'true');
+  assert.equal(await js(`document.querySelectorAll('.mpv-episodes-panel .ep-sidebar-item').length`),2);
+  assert.ok(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().width`) < widthBefore, 'episode panel must leave the native video unobstructed');
+  await js(`const s=document.querySelector('.mpv-episodes-panel select');s.value='2';s.dispatchEvent(new Event('change',{bubbles:true}))`);
+  await delay(200);
+  assert.equal(await js(`document.querySelectorAll('.mpv-episodes-panel .ep-sidebar-item').length`),1);
+  await js(`document.querySelector('.mpv-episodes-panel .ep-sidebar-item').click()`);
+  await delay(1000);
+  assert.equal(await js(`document.querySelector('.mpv-now-episode').textContent`),'Uma nova temporada');
+  assert.equal(await js(`!!document.querySelector('.mpv-episodes-panel')`),false);
+  await js(`document.querySelector('.mpv-episodes-toggle').click()`);await delay(200);
+  assert.equal(await js(`document.querySelector('.mpv-episodes-panel select').value`),'2');
+  assert.equal(await js(`document.querySelector('.mpv-episodes-panel [aria-current="true"]').textContent.includes('Uma nova temporada')`),true);
+  await js(`document.querySelector('button[title="Legendas"]').click()`);await delay(200);
+  assert.equal(await js(`!!document.querySelector('.mpv-episodes-panel')`),false);
+  await js(`document.querySelector('.mpv-episodes-toggle').click()`);await delay(200);
+  assert.equal(await js(`!!document.querySelector('.online-subtitles')`),false);
+  await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);await delay(200);
+  assert.equal(await js(`!!document.querySelector('.mpv-episodes-panel')`),false);
+  assert.equal(await js(`!!document.querySelector('.mpv-surface')`),true);
+  console.log('PASS: signed native playback, seeking, PiP, artwork fallback, episode menu, season selection, episode switching and Escape.');
 } finally {
   socket?.close();
   child.kill('SIGTERM');
   await delay(700);
+  videoServer.closeAllConnections();
+  await new Promise(r=>videoServer.close(r));
 }

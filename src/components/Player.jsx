@@ -1,3 +1,4 @@
+import EpisodesPanel from "./EpisodesPanel";
 import EpisodeArtwork from "./EpisodeArtwork";
 import { t, useLanguage } from "../i18n";
 import React, {
@@ -1029,7 +1030,8 @@ export default function Player({
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey) return;
       const tag = e.target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
+      if ((tag === "SELECT" || tag === "BUTTON") && e.key !== "Escape") return;
       const v = videoRef.current;
       switch (e.key) {
         case " ":
@@ -1217,7 +1219,7 @@ export default function Player({
   // it), so all controls live in a dock under the video. Track pickers swap the
   // dock's content in place (never pop up over the video, which would be hidden).
   if (MPV) {
-    const menuOpen = showAudioMenu || showSubMenu;
+    const menuOpen = showAudioMenu || showSubMenu || epPanelOpen;
     const stateLabel =
       engineState === "starting"
         ? t("starting…")
@@ -1298,6 +1300,10 @@ export default function Player({
             )}
           </div>
 
+          {!error && epPanelOpen && isSeriesContent && episodes.length > 0 && (
+            <EpisodesPanel channel={channel} episodes={episodes} watchProgress={watchProgress}
+              onPlay={onPlay} onClose={() => setEpPanelOpen(false)} />
+          )}
           {!error && showAudioMenu && (
             <div className="mpv-panel" role="menu">
               <div className="mpv-panel-head">
@@ -1517,11 +1523,23 @@ export default function Player({
                 />
               </svg>
             </button>
+            {isSeriesContent && episodes.length > 0 && (
+              <button className={`player-ctrl-btn mpv-episodes-toggle${epPanelOpen ? " active" : ""}`}
+                title={t("Episodes")} aria-label={t("Episodes")} aria-expanded={epPanelOpen}
+                onClick={() => {
+                  setEpPanelOpen(v => !v);
+                  setShowAudioMenu(false);
+                  setShowSubMenu(false);
+                }}>
+                <ListIcon /><span>{t("Episodes")}</span>
+              </button>
+            )}
             <button
               className={`player-ctrl-btn${showSubMenu ? " active" : ""}`}
               onClick={() => {
                 setShowSubMenu((v) => !v);
                 setShowAudioMenu(false);
+                setEpPanelOpen(false);
               }}
               title={t("Subtitles")}
             >
@@ -1532,6 +1550,7 @@ export default function Player({
               onClick={() => {
                 setShowAudioMenu((v) => !v);
                 setShowSubMenu(false);
+                setEpPanelOpen(false);
               }}
               title={t("Audio")}
             >
@@ -1887,6 +1906,7 @@ export default function Player({
                 <button
                   className="player-ctrl-btn"
                   onClick={() => setEpPanelOpen((v) => !v)}
+                  title={t("Episodes")} aria-label={t("Episodes")} aria-expanded={epPanelOpen}
                 >
                   <ListIcon />
                 </button>

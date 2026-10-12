@@ -2122,3 +2122,13 @@ body.pip-active .mpv-now-playing, body.pip-active .mpv-timeline, body.pip-active
 body.pip-active .mpv-transport { position: static; transform: none; margin-right: auto; }
 body.pip-active .mpv-play { width: 32px; height: 32px; }
 body.pip-active .mpv-play svg { width: 22px; height: 22px; }
+.mpv-dock .mpv-episodes-toggle { width: auto; padding: 0 10px; gap: 7px; border-radius: 10px; font-size: 12px; }
+.mpv-episodes-heading { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; }
+.mpv-episodes-heading strong { font-size: 15px; line-height: 1.4; }
+.mpv-episodes-heading select { color: #eee; background: #27272b; border: 1px solid #ffffff18; border-radius: 8px; padding: 9px; font: inherit; cursor: pointer; }
+.mpv-episodes-panel .ep-sidebar-item { width: 100%; background: none; border: 0; text-align: left; color: inherit; border-radius: 10px; cursor: pointer; }
+.mpv-episodes-panel .ep-sidebar-item:hover { background: #ffffff0a; }
+.mpv-episodes-panel .ep-sidebar-item.active { background: #ffffff14; }
+.mpv-episodes-panel .episode-progress-fill { display: block; height: 100%; }
+body.pip-active .mpv-episodes-toggle span { display: none; }
+body.pip-active .mpv-episodes-panel { width: 200px; }
