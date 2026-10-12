@@ -2153,3 +2153,18 @@ body.pip-active .mpv-dock .player-ctrl-btn { width: 30px; height: 30px; min-widt
 @media (max-width: 900px) { .player-overlay .mpv-transport { top: auto; } }
 .player-overlay .player-fav-btn { display: none; }
 .player-mpv:not(.player-overlay).controls-hidden .mpv-dock { display: none; }
+
+/* A permanent drag target over the video; only its decoration fades with the HUD. */
+.player-window-chrome {
+  position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 5;
+  display: flex; align-items: center; padding-left: 96px;
+  -webkit-app-region: drag; user-select: none;
+}
+.player-window-chrome::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(rgba(0, 0, 0, .45), transparent);
+}
+.player-window-chrome span { font-size: 13px; color: rgba(255, 255, 255, .72); }
+.player-window-chrome::before, .player-window-chrome span { transition: opacity 180ms ease; }
+.player-mpv.controls-hidden .player-window-chrome::before,
+.player-mpv.controls-hidden .player-window-chrome span { opacity: 0; }

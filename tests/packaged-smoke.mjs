@@ -76,6 +76,7 @@ try {
   await delay(500);
   assert.ok(await js(`!!document.querySelector('[aria-label="Avançar 10 segundos"]')`));
   assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).position`),'absolute');
+  assert.equal(await js(`getComputedStyle(document.querySelector('.player-window-chrome')).webkitAppRegion`),'drag','windowed player has a persistent drag region');
   const videoHeight=await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`);
   assert.equal(videoHeight,await js('innerHeight'),'controls must not consume video height');
   await delay(3500);
@@ -98,6 +99,7 @@ try {
   assert.equal(framesInPip.width,await js('innerWidth * devicePixelRatio'));
   assert.equal(framesInPip.height,await js('innerHeight * devicePixelRatio'));
   assert.equal(await js('document.body.classList.contains("pip-active")'),true);
+  assert.equal(await js(`!!document.querySelector('.player-window-chrome')`),false,'PiP has no normal window header');
   assert.equal(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().top`),0);
   assert.equal(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`),await js('innerHeight'));
   assert.equal(await js(`getComputedStyle(document.body,'::before').display`),'none');
@@ -111,9 +113,11 @@ try {
   await js('window.electron.toggleFullscreen()');
   await delay(1200);
   assert.equal(await js('window.electron.isFullscreen()'),true,'transparent playback window supports OS fullscreen');
+  assert.equal(await js(`!!document.querySelector('.player-window-chrome')`),false,'OS fullscreen has no draggable header');
   assert.equal(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`),await js('innerHeight'));
   await js('window.electron.toggleFullscreen()');await delay(1200);
   assert.equal(await js('window.electron.isFullscreen()'),false);
+  assert.equal(await js(`getComputedStyle(document.querySelector('.player-window-chrome')).webkitAppRegion`),'drag','drag region returns after fullscreen');
   await js(`document.querySelector('.mpv-back').click();document.querySelector('.topnav-link:nth-child(4)').click()`);
   await delay(350);
   await js(`document.querySelector('.series-detail .episode-row').click()`);

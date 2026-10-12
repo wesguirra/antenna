@@ -1264,7 +1264,7 @@ export default function Player({
           : engineState === "connected"
             ? t("Loading…")
             : "";
-    // Dock auto-hides while playing; stays while paused or a picker is open.
+    // Controls hide when idle, including paused playback; pickers keep them visible.
     const dockVisible = menuOpen || showControls;
     const curl = channel?.url;
     const skey = seriesPrefKey(channel);
@@ -1299,6 +1299,11 @@ export default function Player({
              The panel shrinks the surface beside it (ResizeObserver re-reports the
              smaller rect), so the native video stays VISIBLE — never goes black,
              and the menu is over its own non-video area. */}
+        {overlay && !pipActive && !winFullscreen && (
+          <div className="player-window-chrome" aria-hidden="true">
+            <span>Antenna</span>
+          </div>
+        )}
         {pipActive && <div className="pip-drag-region" aria-hidden="true" />}
         <div className="mpv-body">
           <div className="mpv-stage">

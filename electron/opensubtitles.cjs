@@ -99,7 +99,7 @@ class OpenSubtitles {
         signal: AbortSignal.timeout(15000),
         headers: {
           "Api-Key": this.config.apiKey,
-          "User-Agent": "Antenna v1.10.0",
+          "User-Agent": "Antenna v1.10.1",
           Accept: "application/json",
           ...(body ? { "Content-Type": "application/json" } : {}),
           ...(this.config.token

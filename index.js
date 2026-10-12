@@ -540,7 +540,7 @@ app.on("before-quit", () => {
 
 function updateWindowChrome() {
   if (process.platform === "darwin" && mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.setWindowButtonVisibility(!(pip?.active || (nOverlay && nActive)));
+    mainWindow.setWindowButtonVisibility(!pip?.active);
   }
 }
 ipcMain.handle("mpv-render-status", () => USE_NATIVE_EMBED && nSid ? embeddedMpv.getSessionSnapshot(nSid).rendering : null);
