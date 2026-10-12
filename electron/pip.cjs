@@ -45,12 +45,13 @@ class PictureInPicture {
       };
       if (maximized) win.unmaximize();
       const area = this.screen.getDisplayMatching(bounds).workArea;
-      win.setMinimumSize(320, 220);
+      win.setMinimumSize(320, 180);
+      win.setAspectRatio?.(16 / 9);
       win.setBounds({
         x: area.x + Math.max(0, area.width - 500),
         y: area.y + Math.max(0, area.height - 340),
         width: 480,
-        height: 300,
+        height: 270,
       });
       win.setAlwaysOnTop(true, "floating");
       if (this.platform === "darwin")
@@ -61,6 +62,7 @@ class PictureInPicture {
       win.setAlwaysOnTop(saved.onTop);
       if (this.platform === "darwin")
         win.setVisibleOnAllWorkspaces(saved.allSpaces);
+      win.setAspectRatio?.(0);
       win.setMinimumSize(...saved.minimum);
       win.setBounds(saved.bounds);
       if (saved.maximized) win.maximize();

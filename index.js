@@ -118,6 +118,7 @@ if (process.platform === "darwin") {
   }
 }
 const USE_NATIVE_EMBED = !!embeddedMpv;
+let nOverlay = false;
 let nSid = null;                              // current native session id
 let nRect = { x: 0, y: 0, width: 1, height: 1 };
 let nVisible = false;
@@ -149,6 +150,7 @@ function nEnsureSession() {
     const handle = mainWindow.getNativeWindowHandle();
     nSid = embeddedMpv.createSession(handle, nRect, null, 100);
     nVisible = true;
+    embeddedMpv.setOverlayMode(nSid, nOverlay);
     mpvNotify({ type: "engine", state: "connected" });
   } catch (err) {
     nSid = null;
@@ -198,6 +200,7 @@ function nLoad(url, startSec) {
   playbackGeneration++;
   if (!nEnsureSession()) return false;
   nActive = true;
+  updateWindowChrome();
   nVisible = true;
   try { embeddedMpv.setBounds(nSid, nRect); } catch {}
   try {
@@ -216,6 +219,7 @@ function nLoad(url, startSec) {
 
 function nStop() {
   nActive = false;
+  updateWindowChrome();
   clearInterval(nPollTimer); nPollTimer = null;
   nPrev = {};
   if (nSid) { try { embeddedMpv.disposeSession(nSid); } catch {} }
@@ -534,6 +538,17 @@ app.on("before-quit", () => {
   try { if (videoWin && !videoWin.isDestroyed()) videoWin.destroy(); } catch {}
 });
 
+function updateWindowChrome() {
+  if (process.platform === "darwin" && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setWindowButtonVisibility(!(pip?.active || (nOverlay && nActive)));
+  }
+}
+ipcMain.handle("mpv-render-status", () => USE_NATIVE_EMBED && nSid ? embeddedMpv.getSessionSnapshot(nSid).rendering : null);
+ipcMain.handle("mpv-overlay", (_e, enabled) => {
+  nOverlay = !!enabled;
+  if (USE_NATIVE_EMBED && nSid) embeddedMpv.setOverlayMode(nSid, nOverlay);
+  updateWindowChrome();
+});
 ipcMain.on("playback-backend", (e) => { e.returnValue = USE_NATIVE_EMBED ? "embedded" : mpvPath ? "external" : "html"; });
 ipcMain.on("mpv-available", (e) => { e.returnValue = USE_NATIVE_EMBED || !!mpvPath; });
 let mpvPendingLoad = null; // load requested before the surface rect was known
@@ -638,7 +653,8 @@ function createWindow() {
     show: false,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
     frame: process.platform !== "win32",
-    backgroundColor: "#0a0a0a",
+    transparent: USE_NATIVE_EMBED,
+    backgroundColor: USE_NATIVE_EMBED ? "#00000000" : "#0a0a0a",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -839,5 +855,9 @@ ipcMain.handle("mpv-add-subtitle", async (_e, fileId, details) => {
   else mpvSend(["sub-add", file, "select", title, language]);
   return true;
 });
-ipcMain.handle("pip-set", (_e, enabled) => pip?.set(!!enabled));
+ipcMain.handle("pip-set", async (_e, enabled) => {
+  const active = await pip?.set(!!enabled);
+  updateWindowChrome();
+  return active;
+});
 ipcMain.handle("pip-status", () => !!pip?.active);

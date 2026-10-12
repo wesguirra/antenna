@@ -135,6 +135,7 @@ struct Session {
     std::atomic<bool> running{false};
     std::atomic<bool> renderScheduled{false};
     std::atomic<bool> renderNeeded{false};
+    std::atomic<bool> forceRedraw{true};
     std::atomic<uint64_t> renderedFrameCount{0};
     std::atomic<uint64_t> skippedFrameCount{0};
     std::atomic<uint64_t> totalRenderNanoseconds{0};
@@ -363,6 +364,9 @@ void updateRenderSurfaceMetrics(const std::shared_ptr<Session>& session)
 
       {
           std::lock_guard<std::mutex> lock(session->mutex);
+          if (session->renderWidthPixels != widthPixels || session->renderHeightPixels != heightPixels || session->renderContentsScale != contentsScale) {
+              session->forceRedraw.store(true);
+          }
           session->renderWidthPixels = static_cast<int>(widthPixels);
           session->renderHeightPixels = static_cast<int>(heightPixels);
           session->renderContentsScale = contentsScale > 0
@@ -624,10 +628,14 @@ void renderOpenGLFrame(const std::shared_ptr<Session>& session)
 
     int widthPixels = 0;
     int heightPixels = 0;
+    bool forceRedraw = false;
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         widthPixels = session->renderWidthPixels;
         heightPixels = session->renderHeightPixels;
+        // Consume the resize request together with its dimensions. A resize
+        // arriving after this snapshot must remain pending for the next draw.
+        forceRedraw = session->forceRedraw.exchange(false);
     }
 
     if (widthPixels <= 0 || heightPixels <= 0) {
@@ -647,7 +655,9 @@ void renderOpenGLFrame(const std::shared_ptr<Session>& session)
 
     const uint64_t updateFlags =
         mpv_render_context_update(session->renderContext);
-    if ((updateFlags & MPV_RENDER_UPDATE_FRAME) == 0) {
+    // A paused video has no new MPV frame, but resizing changes the drawable.
+    // Render the retained frame again instead of leaving a cropped old buffer.
+    if ((updateFlags & MPV_RENDER_UPDATE_FRAME) == 0 && !forceRedraw) {
         CGLUnlockContext(cglContext);
         session->skippedFrameCount.fetch_add(1);
         return;
@@ -1940,6 +1950,27 @@ Napi::Value SetBounds(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+// Put video behind the transparent Chromium surface so HTML can overlay it.
+// Inline live playback retains its foreground surface above the catalog.
+Napi::Value SetOverlayMode(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsBoolean()) {
+        throw Napi::TypeError::New(env, "Expected session id and overlay flag.");
+    }
+    auto session = getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
+    const bool overlay = info[1].As<Napi::Boolean>().Value();
+    runOnMainSync(^{
+        if (session->hostView && session->containerView) {
+            [session->hostView addSubview:session->containerView
+                positioned:overlay ? NSWindowBelow : NSWindowAbove relativeTo:nil];
+        }
+    });
+    session->forceRedraw.store(true);
+    requestRender(session);
+    return env.Undefined();
+}
+
 Napi::Value SetPaused(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -2478,6 +2509,14 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
         result.Set("error", Napi::String::New(env, snapshot.error));
     }
 
+    Napi::Object rendering = Napi::Object::New(env);
+    rendering.Set("frames", Napi::Number::New(env, session->renderedFrameCount.load()));
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        rendering.Set("width", Napi::Number::New(env, session->renderWidthPixels));
+        rendering.Set("height", Napi::Number::New(env, session->renderHeightPixels));
+    }
+    result.Set("rendering", rendering);
     return result;
 }
 
@@ -2526,6 +2565,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("isSupported", Napi::Function::New(env, IsSupported));
     exports.Set("createSession", Napi::Function::New(env, CreateSession));
     exports.Set("loadPlayback", Napi::Function::New(env, LoadPlayback));
+    exports.Set("setOverlayMode", Napi::Function::New(env, SetOverlayMode));
     exports.Set("setBounds", Napi::Function::New(env, SetBounds));
     exports.Set("setPaused", Napi::Function::New(env, SetPaused));
     exports.Set("addSubtitle", Napi::Function::New(env, AddSubtitle));

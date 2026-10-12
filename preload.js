@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld("electron", {
   playbackBackend: ipcRenderer.sendSync("playback-backend"),
   setLanguage: (language) => ipcRenderer.invoke("ui-language", language),
   mpv: {
+    renderStatus: () => ipcRenderer.invoke("mpv-render-status"),
+    setOverlay: (enabled) => ipcRenderer.invoke("mpv-overlay", enabled),
     load: (url, startSec) => ipcRenderer.invoke("mpv-load", url, startSec || 0),
     stop: () => ipcRenderer.invoke("mpv-stop"),
     setBounds: (rect) => ipcRenderer.invoke("mpv-set-bounds", rect),

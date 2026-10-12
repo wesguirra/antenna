@@ -333,6 +333,15 @@ async function run() {
   console.log(
     "PASS: Portuguese default, live English switch, cinematic home, native playback, PiP restore, localized subtitle error, subtitle added to native playback.",
   );
+  if (process.env.ANTENNA_SMOKE_PREVIEW === "1") {
+    await js(`document.querySelector('.mpv-panel-head button')?.click();window.electron.mpv.command('pause',true);window.electron.mpv.command('seek',6);window.electron.pip.set(true)`);
+    await delay(300);
+    await js(`document.querySelector('.player-mpv').dispatchEvent(new MouseEvent('mousemove',{bubbles:true}))`);
+    await delay(100);
+    await js(`document.querySelector('.mpv-play').focus()`);
+    console.log("VISUAL PREVIEW READY: quit the test window to finish.");
+    await new Promise(() => {});
+  }
   await js("window.electron.mpv.stop()");
   app.quit();
 }

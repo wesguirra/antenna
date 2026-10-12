@@ -9,6 +9,7 @@ function mock() {
     minimum: [900, 600],
     top: false,
     spaces: false,
+    aspect: 0,
     full: false,
     max: false,
     messages: [],
@@ -38,6 +39,7 @@ function mock() {
       this.full = v;
       if (!v) queueMicrotask(() => this.emit("leave-full-screen"));
     },
+    setAspectRatio(v) { this.aspect = v; },
     setMinimumSize(...v) {
       this.minimum = v;
     },
@@ -74,12 +76,16 @@ test("PiP reuses the same window and restores original bounds and workspace stat
   );
   assert.equal(await pip.set(true), true);
   assert.equal(w.bounds.width, 480);
+  assert.equal(w.bounds.height, 270);
+  assert.equal(w.aspect, 16 / 9);
+  assert.deepEqual(w.minimum, [320, 180]);
   assert.equal(w.top, true);
   assert.equal(w.spaces, true);
   assert.equal(await pip.set(false), false);
   assert.deepEqual(w.bounds, original);
   assert.deepEqual(w.minimum, [900, 600]);
   assert.equal(w.top, false);
+  assert.equal(w.aspect, 0);
   assert.equal(w.spaces, false);
 });
 test("rapid toggles serialize fullscreen transitions and restore fullscreen", async () => {

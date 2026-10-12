@@ -2132,3 +2132,24 @@ body.pip-active .mpv-play svg { width: 22px; height: 22px; }
 .mpv-episodes-panel .episode-progress-fill { display: block; height: 100%; }
 body.pip-active .mpv-episodes-toggle span { display: none; }
 body.pip-active .mpv-episodes-panel { width: 200px; }
+
+/* Video sits behind a transparent web view; HUD never consumes video space. */
+html.video-underlay, html.video-underlay body, html.video-underlay #root { background: transparent; }
+html.video-underlay .main, html.video-underlay .topnav, html.video-underlay .titlebar { visibility: hidden; }
+.player-overlay, .player-overlay .mpv-stage, .player-overlay .mpv-surface { background: transparent; }
+.player-overlay .mpv-dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; min-height: 126px; padding-top: 42px; background: linear-gradient(transparent,rgba(0,0,0,.62)); transition: opacity 180ms ease; }
+.player-overlay .mpv-transport { top: 36px; }
+.player-mpv.controls-hidden .mpv-dock { opacity: 0; pointer-events: none; }
+.player-overlay .mpv-body { height: 100%; }
+.player-overlay .mpv-panel { z-index: 4; }
+body.pip-active::before { display: none; }
+body.pip-active .player-fullscreen { inset: 0; height: 100vh; }
+body.pip-active .mpv-dock { left: 50%; right: auto; bottom: 14px; transform: translateX(-50%); width: auto; min-height: 0; padding: 7px; gap: 9px; flex-wrap: nowrap; border-radius: 30px; background: rgba(28,28,30,.7); }
+body.pip-active .mpv-dock > :not(.mpv-back):not(.mpv-transport):not(.pip-toggle) { display: none; }
+body.pip-active .mpv-dock .mpv-back, body.pip-active .mpv-dock .pip-toggle { display: inline-flex; }
+body.pip-active .mpv-transport { top: auto; margin: 0; }
+body.pip-active .mpv-dock .player-ctrl-btn { width: 30px; height: 30px; min-width: 30px; background: none; }
+.pip-drag-region { position: absolute; left: 0; right: 0; top: 0; height: 18px; z-index: 5; -webkit-app-region: drag; }
+@media (max-width: 900px) { .player-overlay .mpv-transport { top: auto; } }
+.player-overlay .player-fav-btn { display: none; }
+.player-mpv:not(.player-overlay).controls-hidden .mpv-dock { display: none; }

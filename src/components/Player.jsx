@@ -34,6 +34,7 @@ function seriesPrefKey(channel) {
 // HLS). When true, the component skips <video>/hls.js entirely and drives mpv
 // over IPC; mpv draws into a native window steered over .mpv-surface. Available
 // on Windows (bundled mpv.exe) and macOS (bundled or Homebrew/MacPorts mpv).
+const EMBEDDED = typeof window !== "undefined" && window.electron?.playbackBackend === "embedded";
 const MPV =
   typeof window !== "undefined" && window.electron?.mpvAvailable === true;
 
@@ -282,6 +283,11 @@ export default function Player({
     const update = (active) => {
       if (!mounted) return;
       setPipActive(active);
+      if (active) {
+        setShowAudioMenu(false);
+        setShowSubMenu(false);
+        setEpPanelOpen(false);
+      }
       document.body.classList.toggle("pip-active", active);
     };
     window.electron?.pip?.status().then(update);
@@ -408,13 +414,24 @@ export default function Player({
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
-  useEffect(() => {
-    menuOpenRef.current = showAudioMenu || showSubMenu;
-  }, [showAudioMenu, showSubMenu]);
+
   const isLiveContent = contentType === "live";
   const isSeriesContent = contentType === "series";
   const episodes = channel?.episodes || [];
   const [epPanelOpen, setEpPanelOpen] = useState(false);
+  useEffect(() => {
+    menuOpenRef.current = showAudioMenu || showSubMenu || epPanelOpen;
+  }, [showAudioMenu, showSubMenu, epPanelOpen]);
+  const overlay = EMBEDDED && !error && (mode === "fullscreen" || pipActive);
+  useEffect(() => {
+    if (!EMBEDDED) return;
+    document.documentElement.classList.toggle("video-underlay", overlay);
+    window.electron.mpv.setOverlay(overlay);
+    return () => {
+      document.documentElement.classList.remove("video-underlay");
+      window.electron.mpv.setOverlay(false);
+    };
+  }, [overlay]);
   const [retryNonce, setRetryNonce] = useState(0);
   const favKey = isSeriesContent
     ? channel?.seriesId
@@ -462,12 +479,14 @@ export default function Player({
     setShowControls(true);
     clearTimeout(controlsTimer.current);
     controlsTimer.current = setTimeout(() => {
-      // Never hide while a track picker is open; keep visible while paused.
+      // Keep controls available while interacting with a picker or keyboard focus.
       if (menuOpenRef.current) return;
-      const isPaused = MPV ? pausedRef.current : !!videoRef.current?.paused;
-      if (!isPaused) setShowControls(false);
+      if (document.activeElement?.closest(".mpv-dock, .mpv-panel, .player-controls")) return;
+      setShowControls(false);
     }, 3000);
   }, []);
+
+  useEffect(() => { resetControlsTimer(); }, [showAudioMenu, showSubMenu, epPanelOpen, pipActive]);
 
   // Reflect OS window fullscreen state (for the dock's fullscreen toggle icon).
   useEffect(() => {
@@ -528,6 +547,7 @@ export default function Player({
         onSaveProgress?.(url, mpvPosRef.current, mpvDurRef.current, saveMeta);
       }
     };
+    let receivedPlayback = false;
     const off = window.electron.mpv.onEvent((ev) => {
       if (ev.type === "engine") {
         setEngineState(ev.state);
@@ -538,6 +558,7 @@ export default function Player({
         return;
       }
       if (ev.type === "time" && typeof ev.value === "number") {
+        receivedPlayback = true;
         mpvPosRef.current = ev.value;
         setCurrentTime(ev.value);
         setBuffering(false);
@@ -630,7 +651,7 @@ export default function Player({
     // Watchdog: a black surface with no events after 15s is an engine problem —
     // surface it instead of leaving the user staring at nothing.
     const watchdog = setTimeout(() => {
-      if (mpvPosRef.current === 0) {
+      if (!receivedPlayback) {
         setError(
           "The player did not respond. Try again.",
         );
@@ -1019,16 +1040,22 @@ export default function Player({
   // scrollbar can't peek at the window edge over the video. Inline (live) leaves
   // it scrollable. Always cleared on unmount.
   useEffect(() => {
-    const lock = mode === "fullscreen";
+    const lock = mode === "fullscreen" || pipActive;
     document.documentElement.classList.toggle("player-locked", lock);
     return () => document.documentElement.classList.remove("player-locked");
-  }, [mode]);
+  }, [mode, pipActive]);
 
   // Keyboard shortcuts — guarded so Cmd/Ctrl combos (e.g. Cmd/Ctrl+K spotlight)
   // and typing in panel search inputs are never intercepted.
   useEffect(() => {
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey) return;
+      if (e.key === "Tab" && containerRef.current?.classList.contains("controls-hidden")) {
+        e.preventDefault();
+        resetControlsTimer();
+        requestAnimationFrame(() => containerRef.current?.querySelector(".mpv-dock button")?.focus());
+        return;
+      }
       const tag = e.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
       if ((tag === "SELECT" || tag === "BUTTON") && e.key !== "Escape") return;
@@ -1036,15 +1063,26 @@ export default function Player({
       switch (e.key) {
         case " ":
           e.preventDefault();
-          if (v) v.paused ? v.play().catch(() => {}) : v.pause();
+          if (MPV) window.electron.mpv.command("pause", !pausedRef.current);
+          else if (v) v.paused ? v.play().catch(() => {}) : v.pause();
           break;
         case "ArrowLeft":
+          if (MPV && !isLive) {
+            e.preventDefault();
+            window.electron.mpv.command("seek", Math.max(0, mpvPosRef.current - 10));
+            break;
+          }
           if (!isLive && v) {
             e.preventDefault();
             v.currentTime = Math.max(0, v.currentTime - 10);
           }
           break;
         case "ArrowRight":
+          if (MPV && !isLive) {
+            e.preventDefault();
+            window.electron.mpv.command("seek", Math.min(mpvDurRef.current || Infinity, mpvPosRef.current + 10));
+            break;
+          }
           if (!isLive && v) {
             e.preventDefault();
             v.currentTime = Math.min(
@@ -1214,10 +1252,8 @@ export default function Player({
       </div>
     ) : null;
 
-  // ── mpv render path: native video surface + a control DOCK below it.
-  // The engine renders into a native view on TOP of the page (HTML can't overlay
-  // it), so all controls live in a dock under the video. Track pickers swap the
-  // dock's content in place (never pop up over the video, which would be hidden).
+  // Fullscreen/PiP put native video under a transparent web surface and float
+  // the controls above it. Inline live playback retains its foreground surface.
   if (MPV) {
     const menuOpen = showAudioMenu || showSubMenu || epPanelOpen;
     const stateLabel =
@@ -1229,7 +1265,7 @@ export default function Player({
             ? t("Loading…")
             : "";
     // Dock auto-hides while playing; stays while paused or a picker is open.
-    const dockVisible = pipActive || menuOpen || showControls || paused;
+    const dockVisible = menuOpen || showControls;
     const curl = channel?.url;
     const skey = seriesPrefKey(channel);
     // Save a pick for this episode AND (if it's a series) the whole series, so
@@ -1252,14 +1288,18 @@ export default function Player({
     };
     return (
       <div
-        className={`player-fullscreen player-${mode}${hasTitlebar ? " has-titlebar" : ""} player-mpv${!dockVisible ? " controls-hidden" : ""}`}
+        className={`player-fullscreen player-${mode}${hasTitlebar ? " has-titlebar" : ""} player-mpv${overlay ? " player-overlay" : ""}${!dockVisible ? " controls-hidden" : ""}`}
         ref={containerRef}
         onMouseMove={resetControlsTimer}
+        onFocusCapture={resetControlsTimer}
+        onBlurCapture={resetControlsTimer}
+        onMouseLeave={() => { if (!menuOpenRef.current && !document.activeElement?.closest(".mpv-dock")) setShowControls(false); }}
       >
         {/* Body row: the video surface, plus a side panel for the track pickers.
              The panel shrinks the surface beside it (ResizeObserver re-reports the
              smaller rect), so the native video stays VISIBLE — never goes black,
              and the menu is over its own non-video area. */}
+        {pipActive && <div className="pip-drag-region" aria-hidden="true" />}
         <div className="mpv-body">
           <div className="mpv-stage">
             {error ? (
@@ -1388,8 +1428,12 @@ export default function Player({
         {/* Transport dock. Collapsed out of layout when idle so the video
              surface expands to fill the whole player (no reserved black strip);
              it reappears — shrinking the video slightly — on mouse move. */}
-        {!error && dockVisible && (
-          <div className="mpv-dock">
+        {!error && (
+          <div className="mpv-dock"
+            onPointerDown={e => { if (e.pointerType === "mouse" && e.target.closest("button")) e.preventDefault(); }}
+            inert={!dockVisible ? "" : undefined} aria-hidden={!dockVisible}
+            onMouseEnter={() => clearTimeout(controlsTimer.current)}
+            onMouseLeave={resetControlsTimer}>
             <div className="mpv-now-playing">
               <span className="mpv-now-title">{channel?.seriesName || channel?.name || t("Unknown")}</span>
               {channel?.seriesName && <span className="mpv-now-episode">{channel?.name}</span>}

@@ -16,7 +16,9 @@ const server = createServer();
 await new Promise(r => server.listen(0, "127.0.0.1", r));
 const port = server.address().port;
 await new Promise(r => server.close(r));
-const child = spawn(join(appPath, 'Contents/MacOS/Antenna'), [`--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1'], {stdio:'ignore'});
+const child = spawn(join(appPath, 'Contents/MacOS/Antenna'), [`--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1'], {stdio:['ignore','ignore','pipe']});
+let launchOutput='';
+child.stderr.on('data',data=>{launchOutput=(launchOutput+String(data)).slice(-16000);});
 const delay = ms => new Promise(r=>setTimeout(r,ms));
 const size=statSync(video).size;
 const videoServer=createHTTPServer((req,res)=>{
@@ -34,12 +36,12 @@ const episodeURL=n=>`http://127.0.0.1:${videoServer.address().port}/${n}.mp4`;
 let socket;
 try {
   let target;
-  for (let i=0;i<100;i++) {
+  for (let i=0;i<300;i++) {
     try { target=(await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t=>t.type==='page'); } catch {}
     if(target) break;
     await delay(100);
   }
-  assert.ok(target, 'signed app must launch');
+  assert.ok(target, `signed app must launch (exit ${child.exitCode}): ${launchOutput}`);
   socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((r,j)=>{socket.onopen=r;socket.onerror=j;});
   let seq=0;
@@ -73,20 +75,51 @@ try {
   await js(`window.electron.mpv.command('pause',true)`);
   await delay(500);
   assert.ok(await js(`!!document.querySelector('[aria-label="Avançar 10 segundos"]')`));
+  assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).position`),'absolute');
+  const videoHeight=await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`);
+  assert.equal(videoHeight,await js('innerHeight'),'controls must not consume video height');
+  await delay(3500);
+  assert.equal(await js(`document.querySelector('.player-mpv').classList.contains('controls-hidden')`),true,'paused playback must also hide idle controls');
+  assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).opacity`),'0');
+  assert.equal(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`),videoHeight);
+  await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:100,y:100});await delay(250);
+  assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).opacity`),'1');
   const screenshot=await call('Page.captureScreenshot',{format:'png'});
   writeFileSync(join(output,'antenna-player-controls.png'),Buffer.from(screenshot.data,'base64'));
   await js(`document.querySelector('[aria-label="Avançar 10 segundos"]').click()`);
   await delay(800);
   assert.ok(await js('window.__times.at(-1)>=10'), 'skip control must seek');
+  await js(`window.electron.mpv.command('seek',0)`);await delay(16000);
+  assert.equal(await js(`!!document.querySelector('.mpv-surface')`),true,'pausing at zero must not trip the startup watchdog');
+  const framesBeforePip=await js('window.electron.mpv.renderStatus()');
   await js('window.electron.pip.set(true)');await delay(500);
+  const framesInPip=await js('window.electron.mpv.renderStatus()');
+  assert.ok(framesInPip.frames > framesBeforePip.frames,'paused PiP must redraw the retained native video frame');
+  assert.equal(framesInPip.width,await js('innerWidth * devicePixelRatio'));
+  assert.equal(framesInPip.height,await js('innerHeight * devicePixelRatio'));
   assert.equal(await js('document.body.classList.contains("pip-active")'),true);
+  assert.equal(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().top`),0);
+  assert.equal(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`),await js('innerHeight'));
+  assert.equal(await js(`getComputedStyle(document.body,'::before').display`),'none');
+  assert.equal(await js(`[...document.querySelectorAll('.mpv-dock button')].filter(b=>b.getClientRects().length>0).length`),3,'PiP has only close, pause and return');
+  await delay(3500);
+  assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).opacity`),'0','PiP must hide idle controls');
+  await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:100,y:100});await delay(250);
+  assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).opacity`),'1');
   await js('window.electron.pip.set(false)');await delay(500);
   assert.equal(await js('document.body.classList.contains("pip-active")'),false);
+  await js('window.electron.toggleFullscreen()');
+  await delay(1200);
+  assert.equal(await js('window.electron.isFullscreen()'),true,'transparent playback window supports OS fullscreen');
+  assert.equal(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`),await js('innerHeight'));
+  await js('window.electron.toggleFullscreen()');await delay(1200);
+  assert.equal(await js('window.electron.isFullscreen()'),false);
   await js(`document.querySelector('.mpv-back').click();document.querySelector('.topnav-link:nth-child(4)').click()`);
   await delay(350);
   await js(`document.querySelector('.series-detail .episode-row').click()`);
   await delay(1000);
   const widthBefore=await js(`document.querySelector('.mpv-surface').getBoundingClientRect().width`);
+  await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:100,y:100});await delay(100);
   await js(`document.querySelector('.mpv-episodes-toggle').focus()`);
   await call('Input.dispatchKeyEvent', {type:'keyDown', key:' ', code:'Space', windowsVirtualKeyCode:32});
   await call('Input.dispatchKeyEvent', {type:'keyUp', key:' ', code:'Space', windowsVirtualKeyCode:32});
@@ -111,7 +144,11 @@ try {
   await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);await delay(200);
   assert.equal(await js(`!!document.querySelector('.mpv-episodes-panel')`),false);
   assert.equal(await js(`!!document.querySelector('.mpv-surface')`),true);
-  console.log('PASS: signed native playback, seeking, PiP, artwork fallback, episode menu, season selection, episode switching and Escape.');
+  await js(`document.querySelector('.mpv-episodes-toggle').click()`);await delay(100);
+  await js('window.electron.pip.set(true)');await delay(400);
+  assert.equal(await js(`!!document.querySelector('.mpv-panel')`),false,'PiP clears nonessential open menus');
+  await js('window.electron.pip.set(false)');await delay(300);
+  console.log('PASS: signed native playback, seeking, PiP, artwork fallback, episode menu, season selection, episode switching, overlay bounds, idle controls in paused playback/PiP, OS fullscreen and Escape.');
 } finally {
   socket?.close();
   child.kill('SIGTERM');
