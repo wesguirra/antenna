@@ -6,5 +6,5 @@ export default function AppleSymbol({ name, size = 20, children }) {
   const source = window.electron?.playerSymbols?.[name];
   if (!source) return children || null;
   return <span className="apple-symbol" data-symbol={name} aria-hidden="true"
-    style={{ width: size, height: size, maskImage: `url("${source}")`, WebkitMaskImage: `url("${source}")` }} />;
+    style={{ "--symbol-size": `${size}px`, maskImage: `url("${source}")`, WebkitMaskImage: `url("${source}")` }} />;
 }

@@ -2175,3 +2175,14 @@ body.pip-active .mpv-dock .player-ctrl-btn { width: 30px; height: 30px; min-widt
   -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
   vertical-align: middle; pointer-events: none;
 }
+
+/* Size the system symbols with the controls, including their internal padding. */
+.apple-symbol { width: var(--symbol-size, 20px); height: var(--symbol-size, 20px); }
+.player-ctrl-btn .apple-symbol { width: 32px; height: 32px; }
+.mpv-dock .player-ctrl-btn:not(.mpv-episodes-toggle) { width: 44px; height: 44px; }
+.mpv-dock .player-ctrl-btn.mpv-play { width: 56px; height: 56px; }
+.mpv-play .apple-symbol { width: 40px; height: 40px; }
+.mpv-skip .apple-symbol { width: 36px; height: 36px; }
+body.pip-active .mpv-dock .player-ctrl-btn { width: 36px; height: 36px; min-width: 36px; }
+body.pip-active .player-ctrl-btn .apple-symbol { width: 24px; height: 24px; }
+body.pip-active .mpv-play .apple-symbol { width: 28px; height: 28px; }

@@ -93,11 +93,17 @@ try {
   assert.ok(await js(`!!document.querySelector('[aria-label="Avançar 10 segundos"]')`));
   assert.equal(await js(`document.querySelector('[title="Áudio"] .apple-symbol')?.dataset.symbol`),'waveform','audio selector uses an SF waveform, not a recording microphone');
   assert.equal(await js(`document.querySelector('[title="Legendas"] .apple-symbol')?.dataset.symbol`),'captions.bubble');
+  assert.equal(await js(`document.querySelector('[title="Áudio"] .apple-symbol').getBoundingClientRect().width`),32,'utility icons must be clearly visible');
+  assert.equal(await js(`document.querySelector('.mpv-play .apple-symbol').getBoundingClientRect().width`),40,'play/pause icon is larger than utility controls');
+
 
   assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).position`),'absolute');
   assert.equal(await js(`getComputedStyle(document.querySelector('.player-window-chrome')).webkitAppRegion`),'drag','windowed player has a persistent drag region');
   const videoHeight=await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`);
   assert.equal(videoHeight,await js('innerHeight'),'controls must not consume video height');
+  // Keep the idle check independent of restored keyboard focus or the desktop pointer.
+  await js(`document.activeElement?.blur()`);
+  await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:100,y:100});
   await delay(3500);
   assert.equal(await js(`document.querySelector('.player-mpv').classList.contains('controls-hidden')`),true,'paused playback must also hide idle controls');
   assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).opacity`),'0');
@@ -123,6 +129,8 @@ try {
   assert.equal(await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`),await js('innerHeight'));
   assert.equal(await js(`getComputedStyle(document.body,'::before').display`),'none');
   assert.equal(await js(`[...document.querySelectorAll('.mpv-dock button')].filter(b=>b.getClientRects().length>0).length`),3,'PiP has only close, pause and return');
+  assert.equal(await js(`document.querySelector('.pip-toggle .apple-symbol').getBoundingClientRect().width`),24,'PiP icons remain readable and compact');
+
   await delay(3500);
   assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).opacity`),'0','PiP must hide idle controls');
   await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:100,y:100});await delay(250);
