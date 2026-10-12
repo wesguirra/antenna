@@ -549,6 +549,14 @@ ipcMain.handle("mpv-overlay", (_e, enabled) => {
   if (USE_NATIVE_EMBED && nSid) embeddedMpv.setOverlayMode(nSid, nOverlay);
   updateWindowChrome();
 });
+let playerSymbols;
+ipcMain.on("player-symbols", e => {
+  if (!playerSymbols) {
+    try { playerSymbols = embeddedMpv?.getPlayerSymbols?.() || {}; }
+    catch { playerSymbols = {}; }
+  }
+  e.returnValue = playerSymbols;
+});
 ipcMain.on("playback-backend", (e) => { e.returnValue = USE_NATIVE_EMBED ? "embedded" : mpvPath ? "external" : "html"; });
 ipcMain.on("mpv-available", (e) => { e.returnValue = USE_NATIVE_EMBED || !!mpvPath; });
 let mpvPendingLoad = null; // load requested before the surface rect was known

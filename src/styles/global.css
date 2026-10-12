@@ -2168,3 +2168,10 @@ body.pip-active .mpv-dock .player-ctrl-btn { width: 30px; height: 30px; min-widt
 .player-window-chrome::before, .player-window-chrome span { transition: opacity 180ms ease; }
 .player-mpv.controls-hidden .player-window-chrome::before,
 .player-mpv.controls-hidden .player-window-chrome span { opacity: 0; }
+
+.apple-symbol {
+  display: inline-block; flex: 0 0 auto; background-color: currentColor;
+  mask-repeat: no-repeat; mask-position: center; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
+  vertical-align: middle; pointer-events: none;
+}

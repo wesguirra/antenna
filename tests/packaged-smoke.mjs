@@ -55,6 +55,22 @@ try {
   };
   await delay(700);
   assert.equal(await js('window.electron.playbackBackend'),'embedded');
+  const symbolCheck=await js(`(async()=>{
+    const symbols=window.electron.playerSymbols;
+    const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;
+    const ctx=canvas.getContext('2d');
+    const results={};
+    for(const [name,source] of Object.entries(symbols)) {
+      const image=new Image();image.src=source;await image.decode();
+      ctx.clearRect(0,0,96,96);ctx.drawImage(image,0,0,96,96);
+      const pixels=ctx.getImageData(0,0,96,96).data;
+      let alpha=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i]>0)alpha++;
+      results[name]=alpha;
+    }
+    return results;
+  })()`);
+  assert.equal(Object.keys(symbolCheck).length,18,'all player SF Symbols must exist on macOS');
+  for(const [name,pixels] of Object.entries(symbolCheck))assert.ok(pixels>20 && pixels<9000,`${name} must contain visible artwork and transparency`);
   const poster='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="#354354"/></svg>').toString('base64');
   const cache={baseUrl:'https://example.invalid',username:'fixture',cachedAt:Date.now(),channels:[],groups:[],movies:[{id:1,streamId:1,name:'Horizonte',url:pathToFileURL(video).href,poster,backdrop:poster,rating:8,group:'Cinema'}],movieGroups:['Cinema'],series:[{id:1,seriesId:1,name:'Série de teste',poster,group:'Séries',episodes:[{name:'Primeiro encontro',season:1,episodeNum:1,url:episodeURL(1),poster:'https://127.0.0.1:1/unavailable.jpg'},{name:'Segundo encontro',season:1,episodeNum:2,url:episodeURL(2),poster},{name:'Uma nova temporada',season:2,episodeNum:1,url:episodeURL(3),poster}]}],seriesGroups:['Séries']};
   await js(`localStorage.setItem('livebox_xtreamCreds',${JSON.stringify(JSON.stringify({baseUrl:cache.baseUrl,username:'fixture',password:'fixture'}))});localStorage.setItem('livebox_xtreamCache',${JSON.stringify(JSON.stringify(cache))});location.reload()`);
@@ -75,6 +91,9 @@ try {
   await js(`window.electron.mpv.command('pause',true)`);
   await delay(500);
   assert.ok(await js(`!!document.querySelector('[aria-label="Avançar 10 segundos"]')`));
+  assert.equal(await js(`document.querySelector('[title="Áudio"] .apple-symbol')?.dataset.symbol`),'waveform','audio selector uses an SF waveform, not a recording microphone');
+  assert.equal(await js(`document.querySelector('[title="Legendas"] .apple-symbol')?.dataset.symbol`),'captions.bubble');
+
   assert.equal(await js(`getComputedStyle(document.querySelector('.mpv-dock')).position`),'absolute');
   assert.equal(await js(`getComputedStyle(document.querySelector('.player-window-chrome')).webkitAppRegion`),'drag','windowed player has a persistent drag region');
   const videoHeight=await js(`document.querySelector('.mpv-surface').getBoundingClientRect().height`);
@@ -152,7 +171,7 @@ try {
   await js('window.electron.pip.set(true)');await delay(400);
   assert.equal(await js(`!!document.querySelector('.mpv-panel')`),false,'PiP clears nonessential open menus');
   await js('window.electron.pip.set(false)');await delay(300);
-  console.log('PASS: signed native playback, seeking, PiP, artwork fallback, episode menu, season selection, episode switching, overlay bounds, idle controls in paused playback/PiP, OS fullscreen and Escape.');
+  console.log('PASS: system SF Symbols rendered with transparency, audio/legenda symbols, signed native playback, seeking, PiP, artwork fallback, episode menu, season selection, episode switching, overlay bounds, idle controls in paused playback/PiP, OS fullscreen and Escape.');
 } finally {
   socket?.close();
   child.kill('SIGTERM');

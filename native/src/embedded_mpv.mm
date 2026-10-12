@@ -2560,8 +2560,51 @@ Napi::Value AddSubtitle(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+// Render Apple's system-provided symbols at runtime, rather than shipping
+// exported SF Symbols artwork in this cross-platform source repository.
+Napi::Value GetPlayerSymbols(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    Napi::Object result = Napi::Object::New(env);
+    @autoreleasepool {
+        NSArray<NSString*>* names = @[
+            @"play.fill", @"pause.fill", @"xmark", @"gobackward.10", @"goforward.10",
+            @"speaker.slash.fill", @"speaker.wave.1.fill", @"speaker.wave.2.fill", @"speaker.wave.3.fill",
+            @"waveform", @"captions.bubble", @"pip.enter", @"pip.exit", @"list.bullet",
+            @"arrow.up.left.and.arrow.down.right", @"arrow.down.right.and.arrow.up.left",
+            @"chevron.left", @"chevron.right"
+        ];
+        for (NSString* name in names) {
+            NSImage* image = [NSImage imageWithSystemSymbolName:name accessibilityDescription:nil];
+            if (!image) continue;
+            image = [image imageWithSymbolConfiguration:[NSImageSymbolConfiguration
+                configurationWithPointSize:28 weight:NSFontWeightRegular scale:NSImageSymbolScaleMedium]];
+            NSBitmapImageRep* bitmap = [[NSBitmapImageRep alloc]
+                initWithBitmapDataPlanes:nullptr pixelsWide:96 pixelsHigh:96
+                bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
+                colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
+            bitmap.size = NSMakeSize(32, 32);
+            [NSGraphicsContext saveGraphicsState];
+            [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap]];
+            NSRect canvas = NSMakeRect(0, 0, 32, 32);
+            [[NSColor clearColor] setFill];
+            NSRectFillUsingOperation(canvas, NSCompositingOperationCopy);
+            NSSize size = image.size;
+            CGFloat scale = std::min(28.0 / std::max(1.0, size.width), 28.0 / std::max(1.0, size.height));
+            NSRect target = NSMakeRect((32-size.width*scale)/2, (32-size.height*scale)/2, size.width*scale, size.height*scale);
+            [image drawInRect:target fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
+            [NSGraphicsContext restoreGraphicsState];
+            NSData* png = [bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+            NSString* dataURL = [@"data:image/png;base64," stringByAppendingString:[png base64EncodedStringWithOptions:0]];
+            result.Set(name.UTF8String, Napi::String::New(env, dataURL.UTF8String));
+        }
+    }
+    return result;
+}
+
 Napi::Object Init(Napi::Env env, Napi::Object exports)
 {
+    exports.Set("getPlayerSymbols", Napi::Function::New(env, GetPlayerSymbols));
     exports.Set("isSupported", Napi::Function::New(env, IsSupported));
     exports.Set("createSession", Napi::Function::New(env, CreateSession));
     exports.Set("loadPlayback", Napi::Function::New(env, LoadPlayback));

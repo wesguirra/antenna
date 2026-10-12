@@ -8,7 +8,8 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { XIcon } from "./Icons";
+import { XIcon as LegacyXIcon } from "./Icons";
+import AppleSymbol from "./AppleSymbol";
 import { storageGet, storageSet } from "../utils/storage";
 
 // Per-content audio/subtitle track memory, keyed by stream URL.
@@ -52,7 +53,7 @@ function loadHls() {
   return hlsModulePromise;
 }
 
-function PlayIcon() {
+function LegacyPlayIcon() {
   useLanguage();
   return (
     <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
@@ -60,7 +61,7 @@ function PlayIcon() {
     </svg>
   );
 }
-function PauseIcon() {
+function LegacyPauseIcon() {
   useLanguage();
   return (
     <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
@@ -69,7 +70,7 @@ function PauseIcon() {
     </svg>
   );
 }
-function VolumeIcon({ muted, level }) {
+function LegacyVolumeIcon({ muted, level }) {
   useLanguage();
   if (muted || level === 0)
     return (
@@ -117,7 +118,7 @@ function VolumeIcon({ muted, level }) {
     </svg>
   );
 }
-function FullscreenIcon() {
+function LegacyFullscreenIcon() {
   useLanguage();
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -125,7 +126,7 @@ function FullscreenIcon() {
     </svg>
   );
 }
-function ExitFullscreenIcon() {
+function LegacyExitFullscreenIcon() {
   useLanguage();
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -133,7 +134,7 @@ function ExitFullscreenIcon() {
     </svg>
   );
 }
-function ChevronRightIcon() {
+function LegacyChevronRightIcon() {
   useLanguage();
   return (
     <svg
@@ -149,7 +150,7 @@ function ChevronRightIcon() {
     </svg>
   );
 }
-function ChevronLeftIcon() {
+function LegacyChevronLeftIcon() {
   useLanguage();
   return (
     <svg
@@ -165,7 +166,7 @@ function ChevronLeftIcon() {
     </svg>
   );
 }
-function ListIcon() {
+function LegacyListIcon() {
   useLanguage();
   return (
     <svg
@@ -184,7 +185,7 @@ function ListIcon() {
   );
 }
 
-function SubtitleIcon() {
+function LegacySubtitleIcon() {
   useLanguage();
   return (
     <svg
@@ -205,7 +206,7 @@ function SubtitleIcon() {
     </svg>
   );
 }
-function AudioIcon() {
+function LegacyAudioIcon() {
   useLanguage();
   return (
     <svg
@@ -218,11 +219,25 @@ function AudioIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="23" />
+      <path d="M3 10v4M7 6v12M12 3v18M17 6v12M21 10v4" />
     </svg>
   );
+}
+
+
+function XIcon() { return <AppleSymbol name="xmark"><LegacyXIcon /></AppleSymbol>; }
+function PlayIcon() { return <AppleSymbol name="play.fill" size={28}><LegacyPlayIcon /></AppleSymbol>; }
+function PauseIcon() { return <AppleSymbol name="pause.fill" size={28}><LegacyPauseIcon /></AppleSymbol>; }
+function FullscreenIcon() { return <AppleSymbol name="arrow.up.left.and.arrow.down.right" size={20}><LegacyFullscreenIcon /></AppleSymbol>; }
+function ExitFullscreenIcon() { return <AppleSymbol name="arrow.down.right.and.arrow.up.left" size={20}><LegacyExitFullscreenIcon /></AppleSymbol>; }
+function ChevronRightIcon() { return <AppleSymbol name="chevron.right" size={18}><LegacyChevronRightIcon /></AppleSymbol>; }
+function ChevronLeftIcon() { return <AppleSymbol name="chevron.left" size={14}><LegacyChevronLeftIcon /></AppleSymbol>; }
+function ListIcon() { return <AppleSymbol name="list.bullet" size={20}><LegacyListIcon /></AppleSymbol>; }
+function SubtitleIcon() { return <AppleSymbol name="captions.bubble" size={20}><LegacySubtitleIcon /></AppleSymbol>; }
+function AudioIcon() { return <AppleSymbol name="waveform" size={20}><LegacyAudioIcon /></AppleSymbol>; }
+function VolumeIcon({ muted, level }) {
+  const name = muted || level === 0 ? "speaker.slash.fill" : level > .6 ? "speaker.wave.3.fill" : level > .3 ? "speaker.wave.2.fill" : "speaker.wave.1.fill";
+  return <AppleSymbol name={name}><LegacyVolumeIcon muted={muted} level={level} /></AppleSymbol>;
 }
 
 export default function Player({
@@ -1463,7 +1478,7 @@ export default function Player({
               {!isLiveContent && <button className="player-ctrl-btn mpv-skip"
                 title={t("Skip back 10 seconds")} aria-label={t("Skip back 10 seconds")}
                 onClick={() => window.electron.mpv.command("seek", Math.max(0, currentTime - 10))}>
-                <svg viewBox="0 0 28 28" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M8 8a10 10 0 1 1-3 7M8 3v5H3"/><text x="14" y="19" textAnchor="middle" stroke="none" fill="currentColor" fontSize="11" fontWeight="600">10</text></svg>
+                <AppleSymbol name="gobackward.10" size={30}><svg viewBox="0 0 28 28" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M8 8a10 10 0 1 1-3 7M8 3v5H3"/><text x="14" y="19" textAnchor="middle" stroke="none" fill="currentColor" fontSize="11" fontWeight="600">10</text></svg></AppleSymbol>
               </button>}
             <button
               className="player-ctrl-btn mpv-play"
@@ -1476,7 +1491,7 @@ export default function Player({
               {!isLiveContent && <button className="player-ctrl-btn mpv-skip"
                 title={t("Skip forward 10 seconds")} aria-label={t("Skip forward 10 seconds")}
                 onClick={() => window.electron.mpv.command("seek", Math.min(duration || Infinity, currentTime + 10))}>
-                <svg viewBox="0 0 28 28" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20 8a10 10 0 1 0 3 7M20 3v5h5"/><text x="14" y="19" textAnchor="middle" stroke="none" fill="currentColor" fontSize="11" fontWeight="600">10</text></svg>
+                <AppleSymbol name="goforward.10" size={30}><svg viewBox="0 0 28 28" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20 8a10 10 0 1 0 3 7M20 3v5h5"/><text x="14" y="19" textAnchor="middle" stroke="none" fill="currentColor" fontSize="11" fontWeight="600">10</text></svg></AppleSymbol>
               </button>}
             </div>
 
@@ -1553,7 +1568,7 @@ export default function Player({
                 pipActive ? t("Return to window") : t("Picture in Picture")
               }
             >
-              <svg
+              <AppleSymbol name={pipActive ? "pip.exit" : "pip.enter"}><svg
                 width="20"
                 height="20"
                 viewBox="0 0 24 24"
@@ -1570,7 +1585,7 @@ export default function Player({
                   rx="1"
                   fill="currentColor"
                 />
-              </svg>
+              </svg></AppleSymbol>
             </button>
             {isSeriesContent && episodes.length > 0 && (
               <button className={`player-ctrl-btn mpv-episodes-toggle${epPanelOpen ? " active" : ""}`}
@@ -1993,7 +2008,7 @@ export default function Player({
                   pipActive ? "Return to window" : "Picture in Picture",
                 )}
               >
-                <svg
+                <AppleSymbol name={pipActive ? "pip.exit" : "pip.enter"}><svg
                   width="20"
                   height="20"
                   viewBox="0 0 24 24"
@@ -2010,7 +2025,7 @@ export default function Player({
                     rx="1"
                     fill="currentColor"
                   />
-                </svg>
+                </svg></AppleSymbol>
               </button>
               {!isLiveContent && (
                 <>

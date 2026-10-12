@@ -5,6 +5,7 @@ const mpvAvailable = ipcRenderer.sendSync("mpv-available") === true;
 
 contextBridge.exposeInMainWorld("electron", {
   mpvAvailable,
+  playerSymbols: ipcRenderer.sendSync("player-symbols"),
   playbackBackend: ipcRenderer.sendSync("playback-backend"),
   setLanguage: (language) => ipcRenderer.invoke("ui-language", language),
   mpv: {
