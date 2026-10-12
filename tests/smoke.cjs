@@ -90,6 +90,7 @@ async function run() {
     }
   };
   await delay(500);
+  assert.equal(await js("window.electron.playbackBackend"), "embedded", "macOS must use the embedded player");
   assert.equal(await js("document.documentElement.lang"), "pt-BR");
   assert.ok(
     Menu.getApplicationMenu().items.some((item) => item.label === "Arquivo"),

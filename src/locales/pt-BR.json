@@ -207,5 +207,7 @@
   "failed to start embedded mpv": "não foi possível iniciar o player integrado",
   "failed to start mpv": "não foi possível iniciar o player",
   "Request timed out": "A requisição demorou demais",
-  "The player did not respond. Try again.": "O player não respondeu. Tente novamente."
+  "The player did not respond. Try again.": "O player não respondeu. Tente novamente.",
+  "Skip back 10 seconds": "Voltar 10 segundos",
+  "Skip forward 10 seconds": "Avançar 10 segundos"
 }

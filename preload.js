@@ -1,10 +1,11 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-// True only on Windows when the bundled mpv engine is present.
+// Native libmpv on macOS; external mpv on other supported platforms.
 const mpvAvailable = ipcRenderer.sendSync("mpv-available") === true;
 
 contextBridge.exposeInMainWorld("electron", {
   mpvAvailable,
+  playbackBackend: ipcRenderer.sendSync("playback-backend"),
   setLanguage: (language) => ipcRenderer.invoke("ui-language", language),
   mpv: {
     load: (url, startSec) => ipcRenderer.invoke("mpv-load", url, startSec || 0),

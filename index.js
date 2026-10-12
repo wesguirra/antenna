@@ -27,6 +27,9 @@ let pip;
 // the box. Set LIVEBOX_MPV to point at any binary explicitly.
 
 function resolveMpvPath() {
+  // A distributed macOS app must never silently launch an external player.
+  // It ships its embedded libmpv runtime; system mpv is a development fallback.
+  if (process.platform === "darwin" && app.isPackaged) return null;
   // Explicit override — lets us point at any mpv binary.
   if (process.env.LIVEBOX_MPV) {
     try { if (fs.existsSync(process.env.LIVEBOX_MPV)) return process.env.LIVEBOX_MPV; } catch {}
@@ -531,6 +534,7 @@ app.on("before-quit", () => {
   try { if (videoWin && !videoWin.isDestroyed()) videoWin.destroy(); } catch {}
 });
 
+ipcMain.on("playback-backend", (e) => { e.returnValue = USE_NATIVE_EMBED ? "embedded" : mpvPath ? "external" : "html"; });
 ipcMain.on("mpv-available", (e) => { e.returnValue = USE_NATIVE_EMBED || !!mpvPath; });
 let mpvPendingLoad = null; // load requested before the surface rect was known
 

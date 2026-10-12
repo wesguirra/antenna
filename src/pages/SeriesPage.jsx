@@ -1,3 +1,5 @@
+import EpisodeArtwork from "../components/EpisodeArtwork";
+import { episodeArtwork, normalizeSeasons } from "../utils/episodeArtwork.mjs";
 import { t, useLanguage, formatRating } from "../i18n";
 import React, {
   useState,
@@ -97,6 +99,9 @@ function SeriesDetail({
 
   useEffect(() => {
     if (!show) return;
+    let cancelled = false;
+    setSeasons(null);
+    setActiveSeason(null);
     setLoading(true);
     // M3U series carry their episodes inline — build seasons locally, no API call.
     if (Array.isArray(show.episodes) && show.episodes.length) {
@@ -128,7 +133,8 @@ function SeriesDetail({
       .fetchURL(url)
       .then((json) => {
         const data = JSON.parse(json);
-        const eps = data.episodes || {};
+        if (cancelled) return;
+        const eps = normalizeSeasons(data.episodes);
         setSeasons(eps);
         const seasonKeys = Object.keys(eps).sort(
           (a, b) => Number(a) - Number(b),
@@ -136,7 +142,8 @@ function SeriesDetail({
         if (seasonKeys.length) setActiveSeason(seasonKeys[0]);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [show, xtreamCreds]);
 
   const seasonKeys = seasons
@@ -175,24 +182,25 @@ function SeriesDetail({
           id: ep.id,
           name: ep.title || `S${ep.season}E${ep.episode_num}`,
           url: buildEpisodeUrl(ep),
-          logo: ep.info?.movie_image || show.poster || "",
+          logo: episodeArtwork(ep, show.poster, xtreamCreds?.baseUrl)[0] || "",
           episodeId: ep.id,
           seriesId: show.seriesId,
           season: ep.season,
           episodeNum: ep.episode_num,
           duration: ep.info?.duration || "",
-          thumb: ep.info?.movie_image || "",
+          thumb: episodeArtwork(ep, show.poster, xtreamCreds?.baseUrl)[0] || "",
+          artwork: episodeArtwork(ep, show.poster, xtreamCreds?.baseUrl),
         });
       }
     }
     return list;
-  }, [seasons, show, buildEpisodeUrl]);
+  }, [seasons, show, buildEpisodeUrl, xtreamCreds?.baseUrl]);
 
   const handlePlayEpisode = (ep) => {
     onPlay({
       name: ep.title || `S${ep.season}E${ep.episode_num}`,
       url: buildEpisodeUrl(ep),
-      logo: ep.info?.movie_image || show.poster || "",
+      logo: episodeArtwork(ep, show.poster, xtreamCreds?.baseUrl)[0] || "",
       episodeId: ep.id,
       seriesId: show.seriesId,
       season: ep.season,
@@ -281,11 +289,10 @@ function SeriesDetail({
           )}
           <div className="episode-list">
             {(() => {
-              const { baseUrl, username, password } = xtreamCreds;
               const lastEp = getLastEpisode(show.seriesId, watchProgress);
               const seriesClean = stripPrefix(show.name).toLowerCase();
               return episodes.map((ep) => {
-                const epUrl = `${baseUrl}/series/${username}/${password}/${ep.id}.${ep.container_extension || "mkv"}`;
+                const epUrl = buildEpisodeUrl(ep);
                 const prog = watchProgress?.[epUrl];
                 const isLastWatched =
                   lastEp &&
@@ -311,17 +318,11 @@ function SeriesDetail({
                     onClick={() => handlePlayEpisode(ep)}
                     onKeyDown={onActivate(() => handlePlayEpisode(ep))}
                   >
-                    {ep.info?.movie_image && (
-                      <img
-                        src={ep.info.movie_image}
-                        alt=""
-                        className="episode-thumb"
-                        loading="lazy"
-                      />
-                    )}
-                    {!ep.info?.movie_image && (
-                      <span className="episode-num">E{ep.episode_num}</span>
-                    )}
+                    <EpisodeArtwork
+                      candidates={episodeArtwork(ep, show.poster, xtreamCreds?.baseUrl)}
+                      className="episode-thumb"
+                      fallback={<span className="episode-num">E{ep.episode_num}</span>}
+                    />
                     <div className="episode-info">
                       <span className="episode-label">E{ep.episode_num}</span>
                       <span className="episode-title">{epTitle}</span>

@@ -2084,3 +2084,41 @@ body.pip-active .player-ctrl-btn { min-width:24px; width:24px; }
 .home-live-intro{padding:140px 5vw 40px}.home-live-intro h1{font-size:64px;letter-spacing:-3px}.home-live-intro p{color:#aaa}.pip-error{color:#ffb4b4;font-size:12px;}
 
 .topnav-logo{object-fit:contain;box-shadow:none!important}.welcome-logo{border-radius:22px;box-shadow:0 16px 48px rgba(0,0,0,.3)}
+
+/* Antenna player: system typography, quiet controls and a spacious timeline. */
+.player-mpv { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+.mpv-dock {
+  height: auto; min-height: 126px; flex-wrap: wrap; justify-content: flex-end;
+  gap: 10px; padding: 22px 30px 18px; position: relative;
+  background: linear-gradient(180deg, #151517, #09090b); border-top: 0;
+  color: #f5f5f7;
+}
+.mpv-now-playing { flex: 1; min-width: 100px; max-width: calc(50% - 140px); margin-right: auto; display: flex; flex-direction: column; gap: 5px; }
+.mpv-now-title { font-size: 17px; font-weight: 600; letter-spacing: -.3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mpv-now-episode { font-size: 13px; color: #a1a1a6; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mpv-back { order: -1; background: #ffffff0e; border-radius: 50%; }
+.mpv-transport { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; }
+.mpv-dock .player-ctrl-btn { color: #e5e5e7; width: 36px; height: 36px; border-radius: 50%; }
+.mpv-dock .player-ctrl-btn:hover { background: #ffffff18; color: white; }
+.mpv-dock .mpv-play { width: 48px; height: 48px; }
+.mpv-play svg { width: 32px; height: 32px; }
+.mpv-timeline { order: 10; flex: 0 0 100%; display: flex; gap: 14px; align-items: center; margin-top: 12px; }
+.mpv-timeline .player-time { color: #b0b0b5; font-size: 11px; font-variant-numeric: tabular-nums; min-width: 34px; }
+.mpv-dock-seek { appearance: none; height: 5px; border-radius: 5px; background: linear-gradient(to right,#eee var(--seek-pct,0%),#ffffff30 var(--seek-pct,0%)); outline: none; }
+.mpv-dock-seek::-webkit-slider-thumb { appearance: none; width: 11px; height: 11px; border-radius: 50%; background: white; }
+.mpv-dock-volbar { accent-color: #eee; width: 64px; }
+.mpv-panel { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #18181b; border-color: #ffffff12; }
+.mpv-panel-head { padding: 16px 14px 16px 22px; }
+.mpv-panel-item { padding: 13px 16px; }
+.mpv-panel-check, .player-mpv .player-ctrl-btn.active { color: white; }
+@media (max-width: 900px) {
+  .mpv-dock { padding: 14px 18px; gap: 6px; }
+  .mpv-now-playing { flex-basis: calc(100% - 50px); max-width: none; }
+  .mpv-transport { position: static; transform: none; margin-right: auto; gap: 8px; }
+  .mpv-dock-volbar { display: none; }
+}
+body.pip-active .mpv-dock { min-height: 40px; padding: 5px 8px; gap: 2px; }
+body.pip-active .mpv-now-playing, body.pip-active .mpv-timeline, body.pip-active .mpv-skip { display: none; }
+body.pip-active .mpv-transport { position: static; transform: none; margin-right: auto; }
+body.pip-active .mpv-play { width: 32px; height: 32px; }
+body.pip-active .mpv-play svg { width: 22px; height: 22px; }

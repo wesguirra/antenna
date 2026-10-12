@@ -73,7 +73,7 @@ function installMenu({ Menu, app, language, onFullscreen }) {
     });
   app.setAboutPanelOptions({
     applicationName: "Antenna",
-    applicationVersion: "1.8.1",
+    applicationVersion: "1.9.0",
     copyright: "GPL-3.0 · LiveBox by aimen08 · Antenna by wesguirra",
   });
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

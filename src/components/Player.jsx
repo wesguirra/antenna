@@ -1,3 +1,4 @@
+import EpisodeArtwork from "./EpisodeArtwork";
 import { t, useLanguage } from "../i18n";
 import React, {
   useRef,
@@ -1383,13 +1384,17 @@ export default function Player({
              it reappears — shrinking the video slightly — on mouse move. */}
         {!error && dockVisible && (
           <div className="mpv-dock">
+            <div className="mpv-now-playing">
+              <span className="mpv-now-title">{channel?.seriesName || channel?.name || t("Unknown")}</span>
+              {channel?.seriesName && <span className="mpv-now-episode">{channel?.name}</span>}
+            </div>
             {pipError && (
               <span className="pip-error" role="alert">
                 {t(pipError)}
               </span>
             )}
             <button
-              className="player-ctrl-btn"
+              className="player-ctrl-btn mpv-back"
               onClick={() => {
                 window.electron?.pip?.set(false);
                 onClose();
@@ -1399,13 +1404,26 @@ export default function Player({
             >
               <XIcon />
             </button>
+            <div className="mpv-transport">
+              {!isLiveContent && <button className="player-ctrl-btn mpv-skip"
+                title={t("Skip back 10 seconds")} aria-label={t("Skip back 10 seconds")}
+                onClick={() => window.electron.mpv.command("seek", Math.max(0, currentTime - 10))}>
+                <svg viewBox="0 0 28 28" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M8 8a10 10 0 1 1-3 7M8 3v5H3"/><text x="14" y="19" textAnchor="middle" stroke="none" fill="currentColor" fontSize="11" fontWeight="600">10</text></svg>
+              </button>}
             <button
-              className="player-ctrl-btn"
+              className="player-ctrl-btn mpv-play"
+              aria-label={paused ? t("Play") : t("Pause")}
               onClick={() => window.electron.mpv.command("pause", !paused)}
               title={paused ? t("Play") : t("Pause")}
             >
               {paused ? <PlayIcon /> : <PauseIcon />}
             </button>
+              {!isLiveContent && <button className="player-ctrl-btn mpv-skip"
+                title={t("Skip forward 10 seconds")} aria-label={t("Skip forward 10 seconds")}
+                onClick={() => window.electron.mpv.command("seek", Math.min(duration || Infinity, currentTime + 10))}>
+                <svg viewBox="0 0 28 28" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20 8a10 10 0 1 0 3 7M20 3v5h5"/><text x="14" y="19" textAnchor="middle" stroke="none" fill="currentColor" fontSize="11" fontWeight="600">10</text></svg>
+              </button>}
+            </div>
 
             {isLiveContent ? (
               <>
@@ -1415,7 +1433,7 @@ export default function Player({
                 </span>
               </>
             ) : (
-              <>
+              <div className="mpv-timeline">
                 <span className="player-time">{formatTime(currentTime)}</span>
                 <input
                   type="range"
@@ -1431,11 +1449,12 @@ export default function Player({
                     setCurrentTime(t);
                     window.electron.mpv.command("seek", t);
                   }}
+                  style={{ "--seek-pct": `${duration ? Math.min(100, currentTime / duration * 100) : 0}%` }}
                   aria-label={t("Seek")}
                 />
 
-                <span className="player-time">{formatTime(duration)}</span>
-              </>
+                <span className="player-time">−{formatTime(Math.max(0, duration - currentTime))}</span>
+              </div>
             )}
 
             {stateLabel && <span className="mpv-dock-state">{stateLabel}</span>}
@@ -1693,19 +1712,9 @@ export default function Player({
                     })
                   }
                 >
-                  {ep.thumb && (
-                    <img
-                      src={ep.thumb}
-                      alt=""
-                      className="ep-sidebar-thumb"
-                      loading="lazy"
-                    />
-                  )}
-                  {!ep.thumb && (
-                    <span className="ep-sidebar-num">
-                      S{ep.season}E{ep.episodeNum}
-                    </span>
-                  )}
+                  <EpisodeArtwork candidates={ep.artwork || [ep.thumb, channel?.seriesPoster]}
+                    className="ep-sidebar-thumb"
+                    fallback={<span className="ep-sidebar-num">S{ep.season}E{ep.episodeNum}</span>} />
                   <div className="ep-sidebar-info">
                     <span className="ep-sidebar-label">
                       S{ep.season}E{ep.episodeNum}
